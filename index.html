@@ -141,6 +141,7 @@
 <div class="tabs">
   <button class="tab active" data-tab="painel" onclick="switchTab('painel')">📊 Painel</button>
   <button class="tab" data-tab="gastos" onclick="switchTab('gastos')">🛒 Gastos do dia</button>
+  <button class="tab" data-tab="renda" onclick="switchTab('renda')">💰 Renda</button>
   <button class="tab" data-tab="fixos" onclick="switchTab('fixos')">📋 Contas fixas</button>
   <button class="tab" data-tab="cartao" onclick="switchTab('cartao')">💳 Cartões</button>
   <button class="tab" data-tab="projecao" onclick="switchTab('projecao')">📈 Projeção</button>
@@ -210,6 +211,23 @@
     <div class="card-title">Por categoria</div>
     <div class="chart-wrap" style="height:200px"><canvas id="chartCat"></canvas></div>
     <div id="legendCat" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:.5rem;font-size:11px;color:var(--muted)"></div>
+  </div>
+</div>
+
+<!-- RENDA -->
+<div id="pane-renda" style="display:none">
+  <div class="card">
+    <div class="card-title">💰 Renda — <span id="rendaMesLabel" style="color:var(--accent)"></span></div>
+    <p style="font-size:12px;color:var(--hint);margin-bottom:1rem">Editar propaga para este mês e todos os seguintes. Meses anteriores não são alterados.</p>
+    <table>
+      <thead><tr><th>Fonte de renda</th><th style="text-align:right">Valor</th><th>Ações</th></tr></thead>
+      <tbody id="rendaBody"></tbody>
+    </table>
+    <div class="add-form fr3">
+      <div><label class="lbl">Nova fonte de renda</label><input type="text" id="rNome" placeholder="Ex: Freelance, Aluguel..."></div>
+      <div><label class="lbl">Valor (R$)</label><input type="number" id="rVal" step="0.01" placeholder="0,00"></div>
+      <button class="btn" onclick="addRenda()">+ Adicionar</button>
+    </div>
   </div>
 </div>
 
@@ -302,13 +320,16 @@ const MESES = [
   {key:'2027-07',label:'Jul/27'},{key:'2027-08',label:'Ago/27'},{key:'2027-09',label:'Set/27'},
   {key:'2027-10',label:'Out/27'},{key:'2027-11',label:'Nov/27'},{key:'2027-12',label:'Dez/27'},
 ];
-const RENDA = {
-  lucas:[3500,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600],
-  nicole:[1500,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600],
-  extras:[800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800],
-};
+
 const POUPANCA_INICIAL = 20000;
 const STORAGE_KEY = 'financas_ln_v2';
+
+const RENDA_INICIAL = [
+  {id:1, nome:'Lucas',         vals:[3500,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600]},
+  {id:2, nome:'Nicole',        vals:[1500,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600]},
+  {id:3, nome:'Extras (Lucas)',vals:[800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800]},
+];
+let renda;
 
 const CAT_CORES = {
   mercado:'#2D6A4F', restaurante:'#7A4A0A', uber:'#1A4A7A',
@@ -348,14 +369,14 @@ function estadoInicial() {
 }
 
 function salvar() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({fixos,cartaoPessoal,cartaoNubank,gastos,curMesIdx})); } catch(e){}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({fixos,cartaoPessoal,cartaoNubank,gastos,curMesIdx,renda})); } catch(e){}
 }
 function carregar() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if(raw){const d=JSON.parse(raw);fixos=d.fixos;cartaoPessoal=d.cartaoPessoal;cartaoNubank=d.cartaoNubank;gastos=d.gastos;curMesIdx=d.curMesIdx||0;return;}
+    if(raw){const d=JSON.parse(raw);fixos=d.fixos;cartaoPessoal=d.cartaoPessoal;cartaoNubank=d.cartaoNubank;gastos=d.gastos;curMesIdx=d.curMesIdx||0;renda=Array.isArray(d.renda)?d.renda:JSON.parse(JSON.stringify(RENDA_INICIAL));return;}
   } catch(e){}
-  const ini=estadoInicial();fixos=ini.fixos;cartaoPessoal=ini.cartaoPessoal;cartaoNubank=ini.cartaoNubank;gastos=ini.gastos;curMesIdx=0;
+  const ini=estadoInicial();fixos=ini.fixos;cartaoPessoal=ini.cartaoPessoal;cartaoNubank=ini.cartaoNubank;gastos=ini.gastos;curMesIdx=0;renda=JSON.parse(JSON.stringify(RENDA_INICIAL));
 }
 
 const fmt = v => 'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -365,7 +386,7 @@ const mesKey = mi => MESES[mi].key;
 const gastosDoMes = mi => gastos[mesKey(mi)]||[];
 const totalVar = mi => gastosDoMes(mi).reduce((a,g)=>a+g.val,0);
 
-const rendaTotal = mi => RENDA.lucas[mi]+RENDA.nicole[mi]+RENDA.extras[mi];
+const rendaTotal = mi => renda.reduce((a,r)=>a+(r.vals[mi]||0),0);
 const totalFixo = mi => fixos.reduce((a,f)=>a+(f.vals[mi]||0),0);
 const totalCP = mi => cartaoPessoal.reduce((a,c)=>a+(mi>=c.startMes&&mi<c.startMes+c.parc?c.val:0),0);
 const totalCNFixo = mi => cartaoNubank.reduce((a,c)=>a+(mi>=c.startMes&&mi<c.startMes+c.parc?c.val:0),0);
@@ -395,7 +416,7 @@ function changeMes() {
 
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  ['painel','gastos','fixos','cartao','projecao'].forEach(p=>{
+  ['painel','gastos','renda','fixos','cartao','projecao'].forEach(p=>{
     document.getElementById('pane-'+p).style.display=p===tab?'block':'none';
   });
   renderAll();
@@ -406,6 +427,7 @@ function renderAll() {
   const active=document.querySelector('.tab.active').dataset.tab;
   if(active==='painel') renderPainel();
   if(active==='gastos') renderGastos();
+  if(active==='renda') renderRenda();
   if(active==='fixos') renderFixos();
   if(active==='cartao') renderCartao();
   if(active==='projecao') renderProjecao();
@@ -507,6 +529,47 @@ function removeGasto(id) {
   const mk=mesKey(curMesIdx);
   gastos[mk]=(gastos[mk]||[]).filter(g=>g.id!==id);
   salvar(); renderAll();
+}
+
+function renderRenda() {
+  const mi=curMesIdx;
+  document.getElementById('rendaMesLabel').textContent=MESES[mi].label;
+  document.getElementById('rendaBody').innerHTML=
+    renda.map(r=>`<tr>
+      <td>${r.nome}</td>
+      <td class="mono" style="text-align:right">${fmt(r.vals[mi]||0)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="editRenda(${r.id},${mi})">Editar</button>
+        <button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="removeRenda(${r.id})">✕</button>
+      </td>
+    </tr>`).join('')+
+    `<tr class="tr-total"><td>Total</td><td class="mono" style="text-align:right">${fmt(rendaTotal(mi))}</td><td></td></tr>`;
+}
+
+function editRenda(id, mi) {
+  const r=renda.find(x=>x.id===id);
+  const novo=parseFloat(prompt('Novo valor para '+r.nome+' a partir de '+MESES[mi].label+' (propaga para os meses seguintes):',r.vals[mi]||0));
+  if(!isNaN(novo)&&novo>=0){
+    for(let i=mi;i<MESES.length;i++) r.vals[i]=novo;
+    salvar();renderAll();
+  }
+}
+
+function removeRenda(id) {
+  if(renda.length<=1){alert('Precisa ter pelo menos uma fonte de renda.');return;}
+  if(!confirm('Remover esta fonte de renda?'))return;
+  renda=renda.filter(r=>r.id!==id);
+  salvar();renderAll();
+}
+
+function addRenda() {
+  const nome=document.getElementById('rNome').value.trim();
+  const val=parseFloat(document.getElementById('rVal').value);
+  if(!nome||isNaN(val)||val<0)return;
+  renda.push({id:Date.now(),nome,vals:MESES.map(()=>val)});
+  document.getElementById('rNome').value='';
+  document.getElementById('rVal').value='';
+  salvar();renderAll();
 }
 
 function renderFixos() {
@@ -617,6 +680,7 @@ function renderProjecao() {
 
 // INIT
 carregar();
+if(!renda) renda=JSON.parse(JSON.stringify(RENDA_INICIAL));
 populateMeses();
 document.getElementById('gData').value=todayStr();
 renderAll();
