@@ -517,7 +517,14 @@ function renderFixos() {
     <button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="removeFixo(${f.id})">✕</button></td></tr>`).join('')+
     `<tr class="tr-total"><td>Total</td><td class="mono" style="text-align:right">${fmt(totalFixo(mi))}</td><td></td></tr>`;
 }
-function editFixo(id,mi){const f=fixos.find(x=>x.id===id);const novo=parseFloat(prompt('Novo valor para '+f.nome+' em '+MESES[mi].label+':',f.vals[mi]||0));if(!isNaN(novo)){f.vals[mi]=novo;salvar();renderAll();}}
+function editFixo(id,mi){
+  const f=fixos.find(x=>x.id===id);
+  const novo=parseFloat(prompt('Novo valor para '+f.nome+' a partir de '+MESES[mi].label+' (será aplicado neste mês e em todos os seguintes):',f.vals[mi]||0));
+  if(!isNaN(novo)){
+    for(let i=mi;i<MESES.length;i++) f.vals[i]=novo;
+    salvar();renderAll();
+  }
+}
 function removeFixo(id){if(!confirm('Remover?'))return;fixos=fixos.filter(f=>f.id!==id);salvar();renderAll();}
 function addFixo(){
   const nome=document.getElementById('fNome').value.trim();
