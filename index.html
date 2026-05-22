@@ -130,9 +130,10 @@
 
 <header>
   <div class="header-title">Lucas &amp; <span>Nicole</span></div>
-  <div style="display:flex;align-items:center;gap:8px">
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <span style="font-size:11px;color:#A8A49E">Mês</span>
     <select id="mesSel" onchange="changeMes()"></select>
+    <button id="btnNovoAno" onclick="gerarAnoSeguinte()" style="display:none;height:30px;padding:0 10px;font-size:11px;font-weight:500;background:#C8A96E;color:#1A1916;border:none;border-radius:6px;cursor:pointer">+ Ano seguinte</button>
   </div>
 </header>
 
@@ -145,6 +146,7 @@
   <button class="tab" data-tab="fixos" onclick="switchTab('fixos')">📋 Contas fixas</button>
   <button class="tab" data-tab="cartao" onclick="switchTab('cartao')">💳 Cartões</button>
   <button class="tab" data-tab="projecao" onclick="switchTab('projecao')">📈 Projeção</button>
+  <button class="tab" data-tab="relatorios" onclick="switchTab('relatorios')">📄 Relatórios</button>
 </div>
 
 <main>
@@ -271,7 +273,7 @@
     </div>
     <div class="divider"></div>
     <div style="display:flex;justify-content:space-between;font-size:13px">
-      <span>Variáveis lançados no mês</span>
+      <span>Fatura mês anterior (gastos do cartão)</span>
       <span id="varFixoLabel" style="font-family:'DM Mono',monospace;font-weight:600;color:var(--red)"></span>
     </div>
     <div style="margin-top:6px;display:flex;justify-content:space-between;font-weight:600;font-size:14px">
@@ -292,6 +294,36 @@
   <div class="chart-wrap"><canvas id="chartProj"></canvas></div>
 </div>
 
+<!-- RELATÓRIOS -->
+<div id="pane-relatorios" style="display:none">
+  <div class="card">
+    <div class="card-title">📄 Relatório mensal</div>
+    <p style="font-size:12px;color:var(--hint);margin-bottom:1rem">Gera um PDF com resumo completo do mês selecionado — renda, contas fixas, cartões e gastos variáveis.</p>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div>
+        <label class="lbl">Mês</label>
+        <select id="relMes" style="height:33px;font-size:13px;padding:0 8px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text)"></select>
+      </div>
+      <button class="btn" onclick="gerarPDFMensal()" style="align-self:end">⬇ Baixar PDF mensal</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">📄 Relatório anual</div>
+    <p style="font-size:12px;color:var(--hint);margin-bottom:1rem">Gera um PDF com todos os meses do ano — visão geral de renda, gastos e evolução da poupança.</p>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div>
+        <label class="lbl">Ano</label>
+        <select id="relAno" style="height:33px;font-size:13px;padding:0 8px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text)">
+          <option value="2026">2026</option>
+          <option value="2027">2027</option>
+          <option value="2028">2028</option>
+        </select>
+      </div>
+      <button class="btn" onclick="gerarPDFAnual()" style="align-self:end">⬇ Baixar PDF anual</button>
+    </div>
+  </div>
+</div>
+
 </main>
 
 <!-- MODAL EDIÇÃO CARTÃO -->
@@ -310,6 +342,7 @@
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 const MESES = [
@@ -383,8 +416,18 @@ const fmt = v => 'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits
 const fmtS = v => (v>=0?'+ ':'- ')+fmt(v);
 const pct = (v,t) => t>0?(v/t*100).toFixed(0)+'%':'0%';
 const mesKey = mi => MESES[mi].key;
-const gastosDoMes = mi => gastos[mesKey(mi)]||[];
-const totalVar = mi => gastosDoMes(mi).reduce((a,g)=>a+g.val,0);
+const gastosDoMes = mk => gastos[mk]||[];
+const mesAnteriorKey = mi => {
+  const key = MESES[mi].key; // ex: "2026-07"
+  const [ano,mes] = key.split('-').map(Number);
+  const antMes = mes===1?12:mes-1;
+  const antAno = mes===1?ano-1:ano;
+  return antAno+'-'+(antMes<10?'0':'')+antMes; // ex: "2026-06"
+};
+const totalVar = mi => {
+  const mk = mesAnteriorKey(mi);
+  return (gastos[mk]||[]).reduce((a,g)=>a+g.val,0);
+};
 
 const rendaTotal = mi => renda.reduce((a,r)=>a+(r.vals[mi]||0),0);
 const totalFixo = mi => fixos.reduce((a,f)=>a+(f.vals[mi]||0),0);
@@ -401,9 +444,64 @@ function calcPoupanca() {
   return arr;
 }
 
+function verificarBotaoAno() {
+  const ultimoAno = parseInt(MESES[MESES.length-1].key.slice(0,4));
+  const anoAtual = parseInt(MESES[curMesIdx].key.slice(0,4));
+  document.getElementById('btnNovoAno').style.display = anoAtual >= ultimoAno ? 'inline-block' : 'none';
+}
+
+function gerarAnoSeguinte() {
+  const ultimoMes = MESES[MESES.length-1].key; // ex: "2027-12"
+  const ultimoAno = parseInt(ultimoMes.slice(0,4));
+  const novoAno = ultimoAno + 1;
+  const labelAno = String(novoAno).slice(2); // ex: "28"
+  const mesesNomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  // Adiciona 12 meses novos
+  for(let m=1;m<=12;m++) {
+    const key = novoAno+'-'+(m<10?'0':'')+m;
+    const label = mesesNomes[m-1]+'/'+labelAno;
+    MESES.push({key,label});
+  }
+
+  // Estende fixos — repete o último valor conhecido
+  fixos.forEach(f => {
+    const ultimo = f.vals[f.vals.length-1]||0;
+    for(let i=0;i<12;i++) f.vals.push(ultimo);
+  });
+
+  // Estende renda — repete o último valor conhecido
+  renda.forEach(r => {
+    const ultimo = r.vals[r.vals.length-1]||0;
+    for(let i=0;i<12;i++) r.vals.push(ultimo);
+  });
+
+  // Estende cartões pessoal e nubank — não precisa, usam startMes+parc
+
+  // Atualiza o select
+  const sel = document.getElementById('mesSel');
+  const startIdx = MESES.length - 12;
+  for(let i=startIdx;i<MESES.length;i++) {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = MESES[i].label;
+    sel.appendChild(o);
+  }
+
+  salvar();
+  verificarBotaoAno();
+  alert('✅ '+novoAno+' adicionado! Você já pode navegar pelos meses do novo ano.');
+}
+
 function populateMeses() {
   const sel=document.getElementById('mesSel');
-  MESES.forEach((m,i)=>{const o=document.createElement('option');o.value=i;o.textContent=m.label;sel.appendChild(o);});
+  const hoje=new Date().toISOString().slice(0,7); // ex: "2026-07"
+  let idxAtual=0;
+  MESES.forEach((m,i)=>{
+    const o=document.createElement('option');o.value=i;o.textContent=m.label;sel.appendChild(o);
+    if(m.key===hoje) idxAtual=i;
+  });
+  // Se mês atual não está na lista (ex: mai/jun 2026), usa o primeiro
+  curMesIdx=idxAtual;
   sel.value=curMesIdx;
 }
 
@@ -411,14 +509,15 @@ function todayStr() { return new Date().toISOString().slice(0,10); }
 
 function changeMes() {
   curMesIdx=parseInt(document.getElementById('mesSel').value);
-  salvar(); renderAll();
+  salvar(); verificarBotaoAno(); renderAll();
 }
 
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  ['painel','gastos','renda','fixos','cartao','projecao'].forEach(p=>{
+  ['painel','gastos','renda','fixos','cartao','projecao','relatorios'].forEach(p=>{
     document.getElementById('pane-'+p).style.display=p===tab?'block':'none';
   });
+  if(tab==='relatorios') renderRelatorios();
   renderAll();
 }
 
@@ -456,7 +555,7 @@ function renderPainel() {
     {cat:'Contas fixas (boletos)',val:fix,badge:'badge-blue'},
     {cat:'Cartão pessoal — Lucas',val:cp,badge:'badge-amber'},
     {cat:'Nubank — parcelados fixos',val:cnf,badge:'badge-green'},
-    {cat:'Nubank — variáveis do dia',val:vr,badge:'badge-red'},
+    {cat:'Nubank — fatura mês anterior',val:vr,badge:'badge-red'},
     {cat:'TOTAL',val:gasto,tot:true},
   ].map(r=>`<tr${r.tot?' class="tr-total"':''}><td>${r.tot?'Total gasto':'<span class="badge '+r.badge+'">'+r.cat+'</span>'}</td><td class="mono" style="text-align:right">${fmt(r.val)}</td><td style="text-align:right;color:var(--hint)">${pct(r.val,renda)}</td></tr>`).join('');
 
@@ -470,14 +569,51 @@ function renderPainel() {
 
 function renderGastos() {
   const mi=curMesIdx;
-  document.getElementById('gastosTitle').textContent=MESES[mi].label;
+  const mkAtual=mesKey(mi);           // mês que estou vendo (ex: 2026-07)
+  const mkFatura=mesAnteriorKey(mi);  // mês anterior = fatura deste mês (ex: 2026-06)
   const filtCat=document.getElementById('filtCat').value;
-  const lista=gastosDoMes(mi).filter(g=>!filtCat||g.cat===filtCat).sort((a,b)=>b.data.localeCompare(a.data));
+
+  // Título
+  document.getElementById('gastosTitle').textContent=MESES[mi].label;
+
+  // Lista de gastos para lançar = mês atual
+  const listaAtual=(gastos[mkAtual]||[]).filter(g=>!filtCat||g.cat===filtCat).sort((a,b)=>b.data.localeCompare(a.data));
+  // Lista fatura = mês anterior
+  const listaFatura=(gastos[mkFatura]||[]).filter(g=>!filtCat||g.cat===filtCat).sort((a,b)=>b.data.localeCompare(a.data));
+
   const el=document.getElementById('gastosLista');
 
-  if(!lista.length){el.innerHTML='<div class="empty">Nenhum gasto lançado ainda</div>';}
-  else {
-    el.innerHTML=lista.map(g=>`
+  let html='';
+
+  // Bloco fatura (mês anterior)
+  html+=`<div style="font-size:11px;font-weight:600;color:var(--red);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">
+    📋 Fatura de ${MESES[mi].label} — gastos de ${mkFatura.split('-').reverse().join('/')}
+  </div>`;
+  if(!listaFatura.length){
+    html+='<div class="empty" style="padding:.75rem 0">Nenhum gasto em '+mkFatura+'</div>';
+  } else {
+    html+=listaFatura.map(g=>`
+      <div class="gasto-item">
+        <div class="gasto-desc">${g.desc}</div>
+        <span class="gasto-cat cat-${g.cat}">${CAT_NOMES[g.cat]||g.cat}</span>
+        <span class="gasto-data">${g.data.split('-').reverse().slice(0,2).join('/')}</span>
+        <span class="gasto-val">${fmt(g.val)}</span>
+        <button class="btn btn-danger btn-sm" onclick="removeGasto(${g.id})">✕</button>
+      </div>`).join('');
+    const totFatura=listaFatura.reduce((a,g)=>a+g.val,0);
+    html+=`<div style="text-align:right;font-size:12px;color:var(--red);font-family:'DM Mono',monospace;font-weight:600;padding:6px 0;border-top:1px solid var(--border)">Total fatura: ${fmt(totFatura)}</div>`;
+  }
+
+  html+='<div style="height:1px;background:var(--border);margin:1rem 0"></div>';
+
+  // Bloco lançamentos do mês atual
+  html+=`<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">
+    🛒 Lançamentos de ${MESES[mi].label} — viram fatura em ${(() => { const [a,m]=mkAtual.split('-').map(Number); const pm=m===12?1:m+1; const pa=m===12?a+1:a; return (pm<10?'0':'')+pm+'/'+pa; })()}
+  </div>`;
+  if(!listaAtual.length){
+    html+='<div class="empty" style="padding:.75rem 0">Nenhum lançamento ainda</div>';
+  } else {
+    html+=listaAtual.map(g=>`
       <div class="gasto-item">
         <div class="gasto-desc">${g.desc}</div>
         <span class="gasto-cat cat-${g.cat}">${CAT_NOMES[g.cat]||g.cat}</span>
@@ -487,12 +623,15 @@ function renderGastos() {
       </div>`).join('');
   }
 
-  const total=gastosDoMes(mi).reduce((a,g)=>a+g.val,0);
-  document.getElementById('gastosTotalLabel').textContent=fmt(total);
+  el.innerHTML=html;
 
-  // gráfico categorias
+  // Total geral (fatura = mês anterior)
+  const totVar=totalVar(mi);
+  document.getElementById('gastosTotalLabel').textContent=fmt(totVar);
+
+  // Gráfico por categoria (fatura do mês)
   const byCat={};
-  gastosDoMes(mi).forEach(g=>{byCat[g.cat]=(byCat[g.cat]||0)+g.val;});
+  (gastos[mkFatura]||[]).forEach(g=>{byCat[g.cat]=(byCat[g.cat]||0)+g.val;});
   const cats=Object.keys(byCat);
   const vals=cats.map(c=>byCat[c]);
   const cores=cats.map(c=>CAT_CORES[c]||'#888');
@@ -507,7 +646,6 @@ function renderGastos() {
     document.getElementById('legendCat').innerHTML=cats.map((c,i)=>`<span style="display:flex;align-items:center;gap:4px"><span style="width:9px;height:9px;border-radius:2px;background:${cores[i]}"></span>${CAT_NOMES[c]} ${fmt(vals[i])}</span>`).join('');
   } else {
     document.getElementById('legendCat').innerHTML='';
-    document.getElementById('chartCat').getContext('2d').clearRect(0,0,9999,9999);
   }
 }
 
@@ -517,7 +655,8 @@ function addGasto() {
   const cat=document.getElementById('gCat').value;
   const data=document.getElementById('gData').value;
   if(!desc||isNaN(val)||val<=0||!data){alert('Preencha descrição, valor e data.');return;}
-  const mk=mesKey(curMesIdx);
+  // Salva pelo mês da DATA do gasto, não pelo mês selecionado no app
+  const mk=data.slice(0,7); // ex: "2026-06"
   if(!gastos[mk]) gastos[mk]=[];
   gastos[mk].push({id:Date.now(),desc,val,cat,data});
   document.getElementById('gDesc').value='';
@@ -526,8 +665,10 @@ function addGasto() {
 }
 
 function removeGasto(id) {
-  const mk=mesKey(curMesIdx);
-  gastos[mk]=(gastos[mk]||[]).filter(g=>g.id!==id);
+  // Procura em todos os meses
+  Object.keys(gastos).forEach(mk=>{
+    gastos[mk]=(gastos[mk]||[]).filter(g=>g.id!==id);
+  });
   salvar(); renderAll();
 }
 
@@ -678,10 +819,160 @@ function renderProjecao() {
   });
 }
 
+// ─── RELATÓRIOS PDF ──────────────────────────────────────────────────────────
+function renderRelatorios() {
+  const sel=document.getElementById('relMes');
+  if(sel.options.length===0){
+    MESES.forEach((m,i)=>{const o=document.createElement('option');o.value=i;o.textContent=m.label;sel.appendChild(o);});
+    sel.value=curMesIdx;
+  }
+}
+
+function pdfHeader(doc,titulo,landscape) {
+  const W=landscape?297:210;
+  doc.setFillColor(26,25,22);doc.rect(0,0,W,22,'F');
+  doc.setTextColor(200,169,110);doc.setFontSize(14);doc.setFont('helvetica','bold');
+  doc.text('Lucas & Nicole',14,14);
+  doc.setTextColor(168,164,158);doc.setFontSize(10);doc.setFont('helvetica','normal');
+  doc.text(titulo,14,20);
+  doc.setTextColor(26,25,22);
+  return 30;
+}
+function pdfSecao(doc,titulo,y){
+  doc.setFillColor(247,245,240);doc.rect(10,y,190,7,'F');
+  doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(107,104,96);
+  doc.text(titulo.toUpperCase(),14,y+5);
+  doc.setTextColor(26,25,22);return y+10;
+}
+function pdfLinha(doc,label,valor,y,destaque=false){
+  if(destaque){doc.setFillColor(232,239,248);doc.rect(10,y-4,190,7,'F');doc.setFont('helvetica','bold');}
+  else doc.setFont('helvetica','normal');
+  doc.setFontSize(9);doc.setTextColor(26,25,22);
+  doc.text(label,14,y);doc.text(valor,196,y,{align:'right'});
+  doc.setFont('helvetica','normal');return y+7;
+}
+function pdfTotal(doc,label,valor,y){
+  doc.setFillColor(26,25,22);doc.rect(10,y-4,190,8,'F');
+  doc.setTextColor(200,169,110);doc.setFont('helvetica','bold');doc.setFontSize(9);
+  doc.text(label,14,y+1);doc.text(valor,196,y+1,{align:'right'});
+  doc.setTextColor(26,25,22);doc.setFont('helvetica','normal');return y+12;
+}
+
+function gerarPDFMensal(){
+  const mi=parseInt(document.getElementById('relMes').value);
+  const mes=MESES[mi];
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF();
+  let y=pdfHeader(doc,'Relatorio Mensal - '+mes.label,false);
+  const rt=rendaTotal(mi),fix=totalFixo(mi),cp=totalCP(mi),cnf=totalCNFixo(mi),vr=totalVar(mi),gt=totalGasto(mi),sal=saldoMes(mi);
+  const pArr=calcPoupanca();
+  const pAntes=mi===0?POUPANCA_INICIAL:pArr[mi-1];
+
+  y=pdfSecao(doc,'Renda',y);
+  renda.forEach(r=>{y=pdfLinha(doc,r.nome,fmt(r.vals[mi]||0),y);});
+  y=pdfTotal(doc,'Total renda',fmt(rt),y);
+
+  y=pdfSecao(doc,'Contas fixas (boletos)',y);
+  fixos.forEach(f=>{y=pdfLinha(doc,f.nome,fmt(f.vals[mi]||0),y);});
+  y=pdfTotal(doc,'Total fixos',fmt(fix),y);
+
+  y=pdfSecao(doc,'Cartao pessoal - Lucas',y);
+  const cpA=cartaoPessoal.filter(c=>mi>=c.startMes&&mi<c.startMes+c.parc);
+  if(cpA.length) cpA.forEach(c=>{y=pdfLinha(doc,c.nome,fmt(c.val),y);}); else y=pdfLinha(doc,'Nenhum ativo','--',y);
+  y=pdfTotal(doc,'Total cartao Lucas',fmt(cp),y);
+
+  y=pdfSecao(doc,'Cartao Nubank conjunto',y);
+  const cnA=cartaoNubank.filter(c=>mi>=c.startMes&&mi<c.startMes+c.parc);
+  if(cnA.length) cnA.forEach(c=>{y=pdfLinha(doc,c.nome,fmt(c.val),y);});
+  y=pdfLinha(doc,'Fatura variaveis (mes anterior)',fmt(vr),y);
+  y=pdfTotal(doc,'Total Nubank conjunto',fmt(cnf+vr),y);
+
+  const mkFatura=mesAnteriorKey(mi);
+  const gastFatura=gastos[mkFatura]||[];
+  if(gastFatura.length){
+    if(y>210){doc.addPage();y=pdfHeader(doc,'Relatorio Mensal - '+mes.label+' (cont.)',false);}
+    y=pdfSecao(doc,'Gastos variaveis - fatura de '+mes.label,y);
+    gastFatura.forEach(g=>{
+      if(y>270){doc.addPage();y=pdfHeader(doc,'Relatorio Mensal - '+mes.label+' (cont.)',false);}
+      y=pdfLinha(doc,g.desc+' ('+CAT_NOMES[g.cat]+') - '+g.data.split('-').reverse().slice(0,2).join('/'),fmt(g.val),y);
+    });
+  }
+
+  if(y>230){doc.addPage();y=pdfHeader(doc,'Relatorio Mensal - '+mes.label+' (cont.)',false);}
+  y=pdfSecao(doc,'Saldo e poupanca',y);
+  y=pdfLinha(doc,'Total gasto',fmt(gt),y);
+  y=pdfLinha(doc,'Saldo do mes',(sal>=0?'+ ':'-')+fmt(sal),y,true);
+  y=pdfLinha(doc,'Poupanca antes do mes',fmt(pAntes),y);
+  y=pdfTotal(doc,'Poupanca apos o mes',fmt(pArr[mi]),y);
+
+  doc.setFontSize(8);doc.setTextColor(168,164,158);
+  doc.text('Gerado em '+new Date().toLocaleDateString('pt-BR'),105,290,{align:'center'});
+  doc.save('Relatorio-'+mes.label.replace('/','_')+'.pdf');
+}
+
+function gerarPDFAnual(){
+  const ano=parseInt(document.getElementById('relAno').value);
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape'});
+  const mesesAno=MESES.map((m,i)=>({...m,i})).filter(m=>m.key.startsWith(ano+'-'));
+  if(!mesesAno.length){alert('Nenhum mes de '+ano+' disponivel.');return;}
+
+  let y=pdfHeader(doc,'Relatorio Anual - '+ano,true);
+  const colW=22,labelW=48,startX=10;
+
+  // Cabeçalho tabela
+  doc.setFillColor(247,245,240);doc.rect(startX,y-5,labelW+colW*mesesAno.length,8,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(107,104,96);
+  doc.text('Item',startX+2,y);
+  mesesAno.forEach((m,i)=>doc.text(m.label.split('/')[0],startX+labelW+colW*i+colW/2,y,{align:'center'}));
+  y+=8;
+
+  const linhas=[
+    {label:'Renda total',fn:i=>rendaTotal(i),bold:true},
+    {label:'Contas fixas',fn:i=>totalFixo(i)},
+    {label:'Cartao Lucas',fn:i=>totalCP(i)},
+    {label:'Nubank conjunto',fn:i=>totalCN(i)},
+    {label:'Total gasto',fn:i=>totalGasto(i),bold:true},
+    {label:'Saldo mes',fn:i=>saldoMes(i),bold:true,cor:true},
+    {label:'Poupanca',fn:i=>calcPoupanca()[i],bold:true,azul:true},
+  ];
+
+  linhas.forEach((linha,li)=>{
+    if(li%2===0){doc.setFillColor(252,252,250);doc.rect(startX,y-5,labelW+colW*mesesAno.length,7,'F');}
+    doc.setFont('helvetica',linha.bold?'bold':'normal');doc.setFontSize(8);
+    doc.setTextColor(26,25,22);doc.text(linha.label,startX+2,y);
+    mesesAno.forEach((m,i)=>{
+      const v=linha.fn(m.i);
+      if(linha.cor) doc.setTextColor(v>=0?45:155,v>=0?106:35,v>=0?79:53);
+      else if(linha.azul) doc.setTextColor(26,74,122);
+      else doc.setTextColor(26,25,22);
+      const txt=(linha.cor&&v>=0?'+':'')+fmt(v).replace('R$ ','');
+      doc.text(txt,startX+labelW+colW*i+colW-2,y,{align:'right'});
+    });
+    doc.setTextColor(26,25,22);y+=7;
+  });
+
+  // Totais anuais
+  y+=5;
+  doc.setFillColor(26,25,22);doc.rect(startX,y-5,labelW+colW*mesesAno.length,8,'F');
+  doc.setTextColor(200,169,110);doc.setFont('helvetica','bold');doc.setFontSize(8);
+  const rendaA=mesesAno.reduce((a,m)=>a+rendaTotal(m.i),0);
+  const gastoA=mesesAno.reduce((a,m)=>a+totalGasto(m.i),0);
+  const saldoA=rendaA-gastoA;
+  doc.text('TOTAIS ANUAIS',startX+2,y);
+  doc.text('Renda: '+fmt(rendaA)+'  Gasto: '+fmt(gastoA)+'  Saldo: '+(saldoA>=0?'+':'')+fmt(saldoA),startX+labelW+2,y);
+  doc.setTextColor(26,25,22);
+
+  doc.setFontSize(8);doc.setTextColor(168,164,158);
+  doc.text('Gerado em '+new Date().toLocaleDateString('pt-BR'),148,200,{align:'center'});
+  doc.save('Relatorio-Anual-'+ano+'.pdf');
+}
+
 // INIT
 carregar();
 if(!renda) renda=JSON.parse(JSON.stringify(RENDA_INICIAL));
 populateMeses();
+verificarBotaoAno();
 document.getElementById('gData').value=todayStr();
 renderAll();
 </script>
