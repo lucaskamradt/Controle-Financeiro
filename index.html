@@ -346,7 +346,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 const MESES = [
-  {key:'2026-07',label:'Jul/26'},{key:'2026-08',label:'Ago/26'},{key:'2026-09',label:'Set/26'},
+  {key:'2026-08',label:'Ago/26'},{key:'2026-09',label:'Set/26'},
   {key:'2026-10',label:'Out/26'},{key:'2026-11',label:'Nov/26'},{key:'2026-12',label:'Dez/26'},
   {key:'2027-01',label:'Jan/27'},{key:'2027-02',label:'Fev/27'},{key:'2027-03',label:'Mar/27'},
   {key:'2027-04',label:'Abr/27'},{key:'2027-05',label:'Mai/27'},{key:'2027-06',label:'Jun/27'},
@@ -354,13 +354,14 @@ const MESES = [
   {key:'2027-10',label:'Out/27'},{key:'2027-11',label:'Nov/27'},{key:'2027-12',label:'Dez/27'},
 ];
 
-const POUPANCA_INICIAL = 20000;
+const POUPANCA_PADRAO = 20000;
+let poupancaInicial = POUPANCA_PADRAO;
 const STORAGE_KEY = 'financas_ln_v2';
 
 const RENDA_INICIAL = [
-  {id:1, nome:'Lucas',         vals:[3500,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600]},
-  {id:2, nome:'Nicole',        vals:[1500,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600]},
-  {id:3, nome:'Extras (Lucas)',vals:[800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800]},
+  {id:1, nome:'Lucas',         vals:[3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600]},
+  {id:2, nome:'Nicole',        vals:[1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600]},
+  {id:3, nome:'Extras (Lucas)',vals:[800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800]},
 ];
 let renda;
 
@@ -379,12 +380,12 @@ let chartPainel=null, chartCat=null, chartProj=null;
 function estadoInicial() {
   return {
     fixos:[
-      {id:1,nome:'Emcash',vals:[1355.49,1360.63,1365.79,1372.09,1375.63,1380.27,1386.08,1390.78,1394.35,1400.79,1404.38,1409.71,1415.63,1419.85,1425.24,1430.65,1435.5,1440.35]},
-      {id:2,nome:'Financiamento',vals:[1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1300]},
-      {id:3,nome:'Condomínio',vals:[490,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450]},
-      {id:4,nome:'Internet',vals:[190,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150]},
-      {id:5,nome:'Luz',vals:[150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150]},
-      {id:6,nome:'Água',vals:[100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100]},
+      {id:1,nome:'Emcash',vals:[1360.63,1365.79,1372.09,1375.63,1380.27,1386.08,1390.78,1394.35,1400.79,1404.38,1409.71,1415.63,1419.85,1425.24,1430.65,1435.5,1440.35]},
+      {id:2,nome:'Financiamento',vals:[1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1300]},
+      {id:3,nome:'Condomínio',vals:[450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450]},
+      {id:4,nome:'Internet',vals:[150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150]},
+      {id:5,nome:'Luz',vals:[150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150]},
+      {id:6,nome:'Água',vals:[100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100]},
     ],
     cartaoPessoal:[
       {id:1,nome:'PC',val:363.99,parc:8,startMes:0},
@@ -402,14 +403,14 @@ function estadoInicial() {
 }
 
 function salvar() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({fixos,cartaoPessoal,cartaoNubank,gastos,curMesIdx,renda})); } catch(e){}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:3,fixos,cartaoPessoal,cartaoNubank,gastos,curMesIdx,renda,poupancaInicial})); } catch(e){}
 }
 function carregar() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if(raw){const d=JSON.parse(raw);fixos=d.fixos;cartaoPessoal=d.cartaoPessoal;cartaoNubank=d.cartaoNubank;gastos=d.gastos;curMesIdx=d.curMesIdx||0;renda=Array.isArray(d.renda)?d.renda:JSON.parse(JSON.stringify(RENDA_INICIAL));return;}
+    if(raw){const d=JSON.parse(raw);fixos=d.fixos;cartaoPessoal=d.cartaoPessoal;cartaoNubank=d.cartaoNubank;gastos=d.gastos;curMesIdx=d.curMesIdx||0;renda=Array.isArray(d.renda)?d.renda:JSON.parse(JSON.stringify(RENDA_INICIAL));poupancaInicial=typeof d.poupancaInicial==='number'?d.poupancaInicial:POUPANCA_PADRAO;if(!d.__v||d.__v<3){fixos.forEach(f=>f.vals.shift());renda.forEach(r=>r.vals.shift());if(gastos&&gastos['2026-07'])delete gastos['2026-07'];curMesIdx=Math.max(0,curMesIdx-1);salvar();}return;}
   } catch(e){}
-  const ini=estadoInicial();fixos=ini.fixos;cartaoPessoal=ini.cartaoPessoal;cartaoNubank=ini.cartaoNubank;gastos=ini.gastos;curMesIdx=0;renda=JSON.parse(JSON.stringify(RENDA_INICIAL));
+  const ini=estadoInicial();fixos=ini.fixos;cartaoPessoal=ini.cartaoPessoal;cartaoNubank=ini.cartaoNubank;gastos=ini.gastos;curMesIdx=0;renda=JSON.parse(JSON.stringify(RENDA_INICIAL));poupancaInicial=POUPANCA_PADRAO;
 }
 
 const fmt = v => 'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -439,7 +440,7 @@ const saldoMes = mi => rendaTotal(mi)-totalGasto(mi);
 const ultimaParcela = c => { if(c.parc>=999) return 'Mensal ∞'; const idx=c.startMes+c.parc-1; return idx<MESES.length?MESES[idx].label:'além do período'; };
 
 function calcPoupanca() {
-  let p=POUPANCA_INICIAL,arr=[];
+  let p=poupancaInicial,arr=[];
   for(let i=0;i<MESES.length;i++){p+=saldoMes(i);arr.push(Math.round(p*100)/100);}
   return arr;
 }
@@ -534,13 +535,23 @@ function renderAll() {
 
 function renderBanner() {
   const mi=curMesIdx,pArr=calcPoupanca();
-  const pAntes=mi===0?POUPANCA_INICIAL:pArr[mi-1];
+  const pAntes=mi===0?poupancaInicial:pArr[mi-1];
   const sal=saldoMes(mi),pDepois=pArr[mi],pos=sal>=0;
   document.getElementById('poupBanner').innerHTML=`
-    <div class="poup-item"><div class="poup-lbl">Poupança atual</div><div class="poup-val" style="color:var(--accent)">${fmt(pAntes)}</div></div>
+    <div class="poup-item" onclick="editarPoupanca()" style="cursor:pointer" title="Clique para editar a poupança inicial"><div class="poup-lbl">Poupança atual ✎</div><div class="poup-val" style="color:var(--accent)">${fmt(pAntes)}</div></div>
     <div class="poup-arrow ${pos?'poup-pos':'poup-neg'}">${pos?'↑ Guardando':'↓ Retirando'} ${fmt(Math.abs(sal))}</div>
     <div class="poup-item" style="text-align:right"><div class="poup-lbl">Após o mês</div><div class="poup-val" style="color:${pDepois>=0?'#6FCF97':'#F2A0A8'}">${fmt(pDepois)}</div></div>
   `;
+}
+
+function editarPoupanca() {
+  const atual = poupancaInicial.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const resp = prompt('Poupança inicial (valor guardado antes do primeiro mês):', atual);
+  if(resp===null) return;
+  const v = parseFloat(resp.replace(/\./g,'').replace(',','.'));
+  if(isNaN(v)){ alert('Valor inválido. Use o formato 20.000,00'); return; }
+  poupancaInicial = Math.round(v*100)/100;
+  salvar(); renderAll();
 }
 
 function renderPainel() {
@@ -807,7 +818,7 @@ function renderProjecao() {
   document.getElementById('projBody').innerHTML=rows.map(r=>`<tr${r.tot?' class="tr-total"':''}><td style="white-space:nowrap;font-size:12px">${r.lbl}</td>${vis.map((_,i)=>{const v=r.fn(i);let c='';if(r.cls==='g')c='color:var(--green)';else if(r.cls==='a')c='color:var(--amber)';else if(r.cls==='sal')c=v>=0?'color:var(--green)':'color:var(--red)';else if(r.cls==='poup')c=v>=0?'color:var(--blue)':'color:var(--red)';return`<td class="mono" style="text-align:right;font-size:11px;${c}">${r.cls==='sal'?fmtS(v):fmt(v)}</td>`;}).join('')}</tr>`).join('');
 
   const labels=['Início',...vis.slice(0,11).map(m=>m.label)];
-  const data=[POUPANCA_INICIAL,...pArr.slice(0,11)];
+  const data=[poupancaInicial,...pArr.slice(0,11)];
   if(chartProj) chartProj.destroy();
   chartProj=new Chart(document.getElementById('chartProj'),{
     type:'line',
@@ -866,7 +877,7 @@ function gerarPDFMensal(){
   let y=pdfHeader(doc,'Relatorio Mensal - '+mes.label,false);
   const rt=rendaTotal(mi),fix=totalFixo(mi),cp=totalCP(mi),cnf=totalCNFixo(mi),vr=totalVar(mi),gt=totalGasto(mi),sal=saldoMes(mi);
   const pArr=calcPoupanca();
-  const pAntes=mi===0?POUPANCA_INICIAL:pArr[mi-1];
+  const pAntes=mi===0?poupancaInicial:pArr[mi-1];
 
   y=pdfSecao(doc,'Renda',y);
   renda.forEach(r=>{y=pdfLinha(doc,r.nome,fmt(r.vals[mi]||0),y);});
