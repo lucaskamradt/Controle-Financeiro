@@ -367,7 +367,7 @@
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore-compat.js"></script>
 <script>
 const MESES = [
-  {key:'2026-08',label:'Ago/26'},{key:'2026-09',label:'Set/26'},
+  {key:'2026-09',label:'Set/26'},
   {key:'2026-10',label:'Out/26'},{key:'2026-11',label:'Nov/26'},{key:'2026-12',label:'Dez/26'},
   {key:'2027-01',label:'Jan/27'},{key:'2027-02',label:'Fev/27'},{key:'2027-03',label:'Mar/27'},
   {key:'2027-04',label:'Abr/27'},{key:'2027-05',label:'Mai/27'},{key:'2027-06',label:'Jun/27'},
@@ -435,6 +435,8 @@ function conectarFirestore() {
     if (!snap.exists) { enviarParaNuvem(); nuvemStatus = 'online'; atualizarIndicadorNuvem(); return; }
     const d = snap.data();
     if (!d) return;
+    const precisavaMigrar = (d.__v||0) < VERSAO_DADOS;
+    if (precisavaMigrar) { d.curMesIdx = curMesIdx; migrarParaV4(d); }
     aplicandoRemoto = true;
     fixos = d.fixos || fixos;
     cartaoPessoal = d.cartaoPessoal || cartaoPessoal;
@@ -442,10 +444,11 @@ function conectarFirestore() {
     gastos = d.gastos || gastos;
     renda = Array.isArray(d.renda) ? d.renda : renda;
     poupancaInicial = typeof d.poupancaInicial === 'number' ? d.poupancaInicial : poupancaInicial;
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:3,fixos,cartaoPessoal,cartaoNubank,gastos,curMesIdx,renda,poupancaInicial})); } catch(e){}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,gastos,curMesIdx,renda,poupancaInicial})); } catch(e){}
     aplicandoRemoto = false;
     nuvemStatus = 'online'; atualizarIndicadorNuvem();
     renderAll();
+    if (precisavaMigrar) enviarParaNuvem(); // grava a versão já migrada de volta na nuvem
   }, erro => { console.error('Erro ao sincronizar:', erro); nuvemStatus = 'erro'; atualizarIndicadorNuvem(); });
 }
 
@@ -478,14 +481,14 @@ function fazerLogout() {
 
 function enviarParaNuvem() {
   if (aplicandoRemoto || !docRef) return;
-  docRef.set({fixos,cartaoPessoal,cartaoNubank,gastos,curMesIdx,renda,poupancaInicial})
+  docRef.set({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,gastos,curMesIdx,renda,poupancaInicial})
     .catch(erro => { console.error('Erro ao salvar na nuvem:', erro); nuvemStatus = 'erro'; atualizarIndicadorNuvem(); });
 }
 
 const RENDA_INICIAL = [
-  {id:1, nome:'Lucas',         vals:[3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600]},
-  {id:2, nome:'Nicole',        vals:[1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600]},
-  {id:3, nome:'Extras (Lucas)',vals:[800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800]},
+  {id:1, nome:'Lucas',         vals:[3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600]},
+  {id:2, nome:'Nicole',        vals:[1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600,1600]},
+  {id:3, nome:'Extras (Lucas)',vals:[800,800,800,800,800,800,800,800,800,800,800,800,800,800,800,800]},
 ];
 let renda;
 
@@ -504,36 +507,62 @@ let chartPainel=null, chartCat=null, chartProj=null;
 function estadoInicial() {
   return {
     fixos:[
-      {id:1,nome:'Emcash',vals:[1360.63,1365.79,1372.09,1375.63,1380.27,1386.08,1390.78,1394.35,1400.79,1404.38,1409.71,1415.63,1419.85,1425.24,1430.65,1435.5,1440.35]},
-      {id:2,nome:'Financiamento',vals:[1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1300]},
-      {id:3,nome:'Condomínio',vals:[450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450]},
-      {id:4,nome:'Internet',vals:[150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150]},
-      {id:5,nome:'Luz',vals:[150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150]},
-      {id:6,nome:'Água',vals:[100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100]},
+      {id:1,nome:'Emcash',vals:[1365.79,1372.09,1375.63,1380.27,1386.08,1390.78,1394.35,1400.79,1404.38,1409.71,1415.63,1419.85,1425.24,1430.65,1435.5,1440.35]},
+      {id:2,nome:'Financiamento',vals:[1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1300]},
+      {id:3,nome:'Condomínio',vals:[450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450]},
+      {id:4,nome:'Internet',vals:[150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150]},
+      {id:5,nome:'Luz',vals:[150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150]},
+      {id:6,nome:'Água',vals:[100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100]},
     ],
     cartaoPessoal:[
-      {id:1,nome:'PC',val:363.99,parc:8,startMes:0},
-      {id:2,nome:'Bike',val:119,parc:7,startMes:0},
-      {id:3,nome:'Lava e Seca',val:380,parc:9,startMes:0},
-      {id:4,nome:'Cozinha',val:770,parc:10,startMes:0},
+      {id:1,nome:'PC',val:363.99,parc:8,startMes:-1},
+      {id:2,nome:'Bike',val:119,parc:7,startMes:-1},
+      {id:3,nome:'Lava e Seca',val:380,parc:9,startMes:-1},
+      {id:4,nome:'Cozinha',val:770,parc:10,startMes:-1},
     ],
     cartaoNubank:[
-      {id:1,nome:'Academia',val:220,parc:999,startMes:0},
-      {id:2,nome:'Pedra',val:285,parc:11,startMes:0},
+      {id:1,nome:'Academia',val:220,parc:999,startMes:-1},
+      {id:2,nome:'Pedra',val:285,parc:11,startMes:-1},
     ],
     gastos:{},
     curMesIdx:0,
   };
 }
 
+const VERSAO_DADOS = 4;
+
+// Remove agosto/26 da linha do tempo (a partir da v4, o app começa em setembro/26).
+// Idempotente: só mexe em arrays que ainda tenham o formato antigo (17 meses).
+function migrarParaV4(d) {
+  if ((d.__v||0) >= 4) return d;
+  if (Array.isArray(d.fixos)) d.fixos.forEach(f => { if (Array.isArray(f.vals) && f.vals.length > 16) f.vals.shift(); });
+  if (Array.isArray(d.renda)) d.renda.forEach(r => { if (Array.isArray(r.vals) && r.vals.length > 16) r.vals.shift(); });
+  if (Array.isArray(d.cartaoPessoal) && (d.__v||0) < 4) d.cartaoPessoal.forEach(c => c.startMes -= 1);
+  if (Array.isArray(d.cartaoNubank) && (d.__v||0) < 4) d.cartaoNubank.forEach(c => c.startMes -= 1);
+  if (d.gastos && d.gastos['2026-08']) delete d.gastos['2026-08'];
+  d.curMesIdx = Math.max(0, (d.curMesIdx||0) - 1);
+  d.__v = 4;
+  return d;
+}
+
 function salvar() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:3,fixos,cartaoPessoal,cartaoNubank,gastos,curMesIdx,renda,poupancaInicial})); } catch(e){}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,gastos,curMesIdx,renda,poupancaInicial})); } catch(e){}
   enviarParaNuvem();
 }
 function carregar() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if(raw){const d=JSON.parse(raw);fixos=d.fixos;cartaoPessoal=d.cartaoPessoal;cartaoNubank=d.cartaoNubank;gastos=d.gastos;curMesIdx=d.curMesIdx||0;renda=Array.isArray(d.renda)?d.renda:JSON.parse(JSON.stringify(RENDA_INICIAL));poupancaInicial=typeof d.poupancaInicial==='number'?d.poupancaInicial:POUPANCA_PADRAO;if(!d.__v||d.__v<3){fixos.forEach(f=>f.vals.shift());renda.forEach(r=>r.vals.shift());if(gastos&&gastos['2026-07'])delete gastos['2026-07'];curMesIdx=Math.max(0,curMesIdx-1);salvar();}return;}
+    if(raw){
+      const d=JSON.parse(raw);
+      fixos=d.fixos;cartaoPessoal=d.cartaoPessoal;cartaoNubank=d.cartaoNubank;gastos=d.gastos;curMesIdx=d.curMesIdx||0;
+      renda=Array.isArray(d.renda)?d.renda:JSON.parse(JSON.stringify(RENDA_INICIAL));
+      poupancaInicial=typeof d.poupancaInicial==='number'?d.poupancaInicial:POUPANCA_PADRAO;
+      let versao = d.__v||0;
+      if(versao<3){fixos.forEach(f=>f.vals.shift());renda.forEach(r=>r.vals.shift());if(gastos&&gastos['2026-07'])delete gastos['2026-07'];curMesIdx=Math.max(0,curMesIdx-1);versao=3;}
+      if(versao<4){d.fixos=fixos;d.renda=renda;d.cartaoPessoal=cartaoPessoal;d.cartaoNubank=cartaoNubank;d.gastos=gastos;d.curMesIdx=curMesIdx;d.__v=versao;migrarParaV4(d);curMesIdx=d.curMesIdx;}
+      salvar();
+      return;
+    }
   } catch(e){}
   const ini=estadoInicial();fixos=ini.fixos;cartaoPessoal=ini.cartaoPessoal;cartaoNubank=ini.cartaoNubank;gastos=ini.gastos;curMesIdx=0;renda=JSON.parse(JSON.stringify(RENDA_INICIAL));poupancaInicial=POUPANCA_PADRAO;
 }
@@ -620,13 +649,20 @@ function gerarAnoSeguinte() {
 
 function populateMeses() {
   const sel=document.getElementById('mesSel');
-  const hoje=new Date().toISOString().slice(0,7); // ex: "2026-07"
-  let idxAtual=0;
+  const hoje=new Date();
+  const prox=new Date(hoje.getFullYear(), hoje.getMonth()+1, 1);
+  const alvo=prox.toISOString().slice(0,7); // sempre abre no mês seguinte ao atual, ex: hoje ago/26 -> abre set/26
+  let idxAtual=0, achou=false;
   MESES.forEach((m,i)=>{
     const o=document.createElement('option');o.value=i;o.textContent=m.label;sel.appendChild(o);
-    if(m.key===hoje) idxAtual=i;
+    if(m.key===alvo){ idxAtual=i; achou=true; }
   });
-  // Se mês atual não está na lista (ex: mai/jun 2026), usa o primeiro
+  // Se o mês seguinte não estiver na lista (fora do período cadastrado), usa o mais próximo a partir de hoje
+  if(!achou){
+    const hojeKey=hoje.toISOString().slice(0,7);
+    const idx=MESES.findIndex(m=>m.key>=hojeKey);
+    idxAtual = idx>=0 ? idx : MESES.length-1;
+  }
   curMesIdx=idxAtual;
   sel.value=curMesIdx;
 }
