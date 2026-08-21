@@ -253,24 +253,26 @@
 <div id="pane-cartao" style="display:none">
   <div class="card">
     <div class="card-title">Cartão pessoal — Lucas <span class="badge badge-amber">parcelados</span></div>
-    <table><thead><tr><th>Item</th><th style="text-align:right">R$/mês</th><th>Até</th><th style="text-align:center">Pago</th><th></th></tr></thead>
+    <table><thead><tr><th>Item</th><th style="text-align:right">R$/mês</th><th>Até</th><th style="text-align:center">Parcela</th><th style="text-align:center">Pago</th><th></th></tr></thead>
     <tbody id="cpBody"></tbody></table>
-    <div class="add-form fr4">
+    <div class="add-form fr5">
       <div><label class="lbl">Item</label><input type="text" id="cpNome"></div>
+      <div><label class="lbl">Valor total (R$)</label><input type="number" id="cpValTotal" step="0.01" placeholder="opcional" oninput="calcMensal('cp')"></div>
       <div><label class="lbl">R$/mês</label><input type="number" id="cpVal" step="0.01"></div>
-      <div><label class="lbl">Parcelas restantes</label><input type="number" id="cpParc" min="1" value="12"></div>
+      <div><label class="lbl">Parcelas restantes</label><input type="number" id="cpParc" min="1" value="12" oninput="calcMensal('cp')"></div>
       <button class="btn" onclick="addCartaoPessoal()">+</button>
     </div>
   </div>
   <div class="card">
     <div class="card-title">Cartão conjunto — Nubank <span class="badge badge-green">casal</span></div>
     <div class="sub-title">Parcelados fixos</div>
-    <table><thead><tr><th>Item</th><th style="text-align:right">R$/mês</th><th>Até</th><th style="text-align:center">Pago</th><th></th></tr></thead>
+    <table><thead><tr><th>Item</th><th style="text-align:right">R$/mês</th><th>Até</th><th style="text-align:center">Parcela</th><th style="text-align:center">Pago</th><th></th></tr></thead>
     <tbody id="cnBody"></tbody></table>
-    <div class="add-form fr4">
+    <div class="add-form fr5">
       <div><label class="lbl">Item</label><input type="text" id="cnNome"></div>
+      <div><label class="lbl">Valor total (R$)</label><input type="number" id="cnValTotal" step="0.01" placeholder="opcional" oninput="calcMensal('cn')"></div>
       <div><label class="lbl">R$/mês</label><input type="number" id="cnVal" step="0.01"></div>
-      <div><label class="lbl">Parcelas restantes</label><input type="number" id="cnParc" min="1" value="12"></div>
+      <div><label class="lbl">Parcelas restantes</label><input type="number" id="cnParc" min="1" value="12" oninput="calcMensal('cn')"></div>
       <button class="btn" onclick="addCartaoNubank()">+</button>
     </div>
     <div class="divider"></div>
@@ -602,6 +604,7 @@ const totalCN = mi => totalCNFixo(mi)+totalVar(mi);
 const totalGasto = mi => totalFixo(mi)+totalCP(mi)+totalCN(mi);
 const saldoMes = mi => rendaTotal(mi)-totalGasto(mi);
 const ultimaParcela = c => { if(c.parc>=999) return 'Mensal ∞'; const idx=c.startMes+c.parc-1; return idx<MESES.length?MESES[idx].label:'além do período'; };
+const parcelaAtual = (c,mi) => { if(c.parc>=999) return ''; return `${mi-c.startMes+1}/${c.parc}`; };
 
 function calcPoupanca() {
   let p=poupancaInicial,arr=[];
@@ -958,15 +961,17 @@ function renderCartao() {
       const a=mi>=c.startMes&&mi<c.startMes+c.parc;
       const rotulo = !a ? ` <span class="badge badge-blue">a partir de ${MESES[c.startMes]?MESES[c.startMes].label:'?'}</span>` : '';
       return `<tr${(!a||cpPago)?' class="tr-dim"':''}><td>${c.nome}${rotulo}</td><td class="mono" style="text-align:right">${a?fmt(c.val):'—'}</td><td style="color:var(--hint)">${ultimaParcela(c)}</td>
+      <td class="mono" style="text-align:center;color:var(--hint)">${a?parcelaAtual(c,mi):''}</td>
       <td></td>
       <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="abrirModal('cp',${c.id})">✏️</button> <button class="btn btn-danger btn-sm" onclick="removeCP(${c.id})">✕</button></td></tr>`;
     }).join('')+
-    `<tr class="tr-total"><td>Total</td><td class="mono" style="text-align:right">${fmt(totalCP(mi))}</td><td></td><td style="text-align:center"><input type="checkbox" ${cpPago?'checked':''} onchange="toggleFaturaPaga('cp')" style="width:16px;height:16px;cursor:pointer"></td><td></td></tr>`;
+    `<tr class="tr-total"><td>Total</td><td class="mono" style="text-align:right">${fmt(totalCP(mi))}</td><td></td><td></td><td style="text-align:center"><input type="checkbox" ${cpPago?'checked':''} onchange="toggleFaturaPaga('cp')" style="width:16px;height:16px;cursor:pointer"></td><td></td></tr>`;
   document.getElementById('cnBody').innerHTML=
     cartaoNubank.filter(c=>mi<c.startMes+c.parc).map(c=>{
       const a=mi>=c.startMes&&mi<c.startMes+c.parc;
       const rotulo = !a ? ` <span class="badge badge-blue">a partir de ${MESES[c.startMes]?MESES[c.startMes].label:'?'}</span>` : '';
       return `<tr${(!a||cnPago)?' class="tr-dim"':''}><td>${c.nome}${rotulo}</td><td class="mono" style="text-align:right">${a?fmt(c.val):'—'}</td><td style="color:var(--hint)">${ultimaParcela(c)}</td>
+      <td class="mono" style="text-align:center;color:var(--hint)">${a?parcelaAtual(c,mi):''}</td>
       <td></td>
       <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="abrirModal('cn',${c.id})">✏️</button> <button class="btn btn-danger btn-sm" onclick="removeCN(${c.id})">✕</button></td></tr>`;
     }).join('');
@@ -980,15 +985,25 @@ function toggleFaturaPaga(tipo){
   salvar();renderCartao();
 }
 
+function calcMensal(prefix){
+  const totalEl=document.getElementById(prefix+'ValTotal');
+  const parcEl=document.getElementById(prefix+'Parc');
+  const valEl=document.getElementById(prefix+'Val');
+  const total=parseFloat(totalEl.value);
+  const parc=parseInt(parcEl.value);
+  if(!isNaN(total)&&total>0&&!isNaN(parc)&&parc>0){
+    valEl.value=(total/parc).toFixed(2);
+  }
+}
 function addCartaoPessoal(){
   const nome=document.getElementById('cpNome').value.trim();const val=parseFloat(document.getElementById('cpVal').value);const parc=parseInt(document.getElementById('cpParc').value)||1;
   if(!nome||isNaN(val))return;cartaoPessoal.push({id:Date.now(),nome,val,parc,startMes:curMesIdx,pago:MESES.map(()=>false)});
-  document.getElementById('cpNome').value='';document.getElementById('cpVal').value='';salvar();renderAll();
+  document.getElementById('cpNome').value='';document.getElementById('cpVal').value='';document.getElementById('cpValTotal').value='';salvar();renderAll();
 }
 function addCartaoNubank(){
   const nome=document.getElementById('cnNome').value.trim();const val=parseFloat(document.getElementById('cnVal').value);const parc=parseInt(document.getElementById('cnParc').value)||1;
   if(!nome||isNaN(val))return;cartaoNubank.push({id:Date.now(),nome,val,parc,startMes:curMesIdx,pago:MESES.map(()=>false)});
-  document.getElementById('cnNome').value='';document.getElementById('cnVal').value='';salvar();renderAll();
+  document.getElementById('cnNome').value='';document.getElementById('cnVal').value='';document.getElementById('cnValTotal').value='';salvar();renderAll();
 }
 function removeCP(id){if(!confirm('Remover?'))return;cartaoPessoal=cartaoPessoal.filter(c=>c.id!==id);salvar();renderAll();}
 function removeCN(id){if(!confirm('Remover?'))return;cartaoNubank=cartaoNubank.filter(c=>c.id!==id);salvar();renderAll();}
