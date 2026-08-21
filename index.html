@@ -131,6 +131,8 @@
 <header>
   <div class="header-title">Lucas &amp; <span>Nicole</span></div>
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <span id="nuvemIndicador" style="font-size:10px;color:#A8A49E;font-family:'DM Mono',monospace"></span>
+    <a href="#" onclick="fazerLogout();return false" style="font-size:10px;color:#A8A49E;text-decoration:underline">Sair</a>
     <span style="font-size:11px;color:#A8A49E">Mês</span>
     <select id="mesSel" onchange="changeMes()"></select>
     <button id="btnNovoAno" onclick="gerarAnoSeguinte()" style="display:none;height:30px;padding:0 10px;font-size:11px;font-weight:500;background:#C8A96E;color:#1A1916;border:none;border-radius:6px;cursor:pointer">+ Ano seguinte</button>
@@ -326,6 +328,21 @@
 
 </main>
 
+<!-- LOGIN -->
+<div class="modal-backdrop" id="loginBackdrop" style="z-index:300">
+  <div class="modal">
+    <h3>Entrar</h3>
+    <div class="modal-grid">
+      <div><label class="lbl">Email</label><input type="text" id="loginEmail" autocomplete="username" onkeydown="loginKeydown(event)"></div>
+      <div><label class="lbl">Senha</label><input type="password" id="loginSenha" autocomplete="current-password" onkeydown="loginKeydown(event)"></div>
+      <div id="loginErro" style="color:var(--red);font-size:12px"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fazerLogin()" style="width:100%">Entrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL EDIÇÃO CARTÃO -->
 <div class="modal-backdrop" id="modalBackdrop" onclick="fecharModal(event)">
   <div class="modal">
@@ -344,6 +361,10 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<!-- Firebase: sincroniza os dados entre qualquer navegador/dispositivo -->
+<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore-compat.js"></script>
 <script>
 const MESES = [
   {key:'2026-08',label:'Ago/26'},{key:'2026-09',label:'Set/26'},
@@ -357,6 +378,109 @@ const MESES = [
 const POUPANCA_PADRAO = 20000;
 let poupancaInicial = POUPANCA_PADRAO;
 const STORAGE_KEY = 'financas_ln_v2';
+
+// ─── SINCRONIZAÇÃO COM A NUVEM (Firebase) ─────────────────────────────────
+// 1) Crie um projeto grátis em https://console.firebase.google.com
+// 2) Ative o Firestore Database e a autenticação Anônima
+// 3) Cole aqui embaixo as credenciais do seu app da Web (Configurações do projeto > Geral > Seus apps)
+const firebaseConfig = {
+  apiKey: "AIzaSyA5_1S241PVia5PsOREo-6ifPAgM5Qt3Gc",
+  authDomain: "controle-financeiro-ln.firebaseapp.com",
+  projectId: "controle-financeiro-ln",
+  storageBucket: "controle-financeiro-ln.firebasestorage.app",
+  messagingSenderId: "600905797930",
+  appId: "1:600905797930:web:85e8301c947ef4dfa5ce53"
+};
+const FIREBASE_CONFIGURADO = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('COLE_AQUI');
+let docRef = null;
+let aplicandoRemoto = false; // evita reenviar pra nuvem o dado que acabou de chegar da nuvem
+let nuvemStatus = 'offline'; // offline | conectando | online | erro
+
+function atualizarIndicadorNuvem() {
+  const el = document.getElementById('nuvemIndicador');
+  if (!el) return;
+  const map = {
+    offline: ['Somente neste navegador', '#A8A49E'],
+    conectando: ['Conectando à nuvem…', '#C8A96E'],
+    online: ['Sincronizado ☁️', '#2D6A4F'],
+    erro: ['Falha ao sincronizar', '#9B2335'],
+  };
+  const [txt, cor] = map[nuvemStatus];
+  el.textContent = txt;
+  el.style.color = cor;
+}
+
+function initFirebase() {
+  if (!FIREBASE_CONFIGURADO) { nuvemStatus = 'offline'; atualizarIndicadorNuvem(); return; }
+  nuvemStatus = 'conectando'; atualizarIndicadorNuvem();
+  try {
+    firebase.initializeApp(firebaseConfig);
+    firebase.auth().onAuthStateChanged(user => {
+      if (user) {
+        esconderLogin();
+        conectarFirestore();
+      } else {
+        mostrarLogin();
+      }
+    });
+  } catch (erro) {
+    console.error('Firebase não pôde iniciar:', erro); nuvemStatus = 'erro'; atualizarIndicadorNuvem();
+  }
+}
+
+function conectarFirestore() {
+  const db = firebase.firestore();
+  docRef = db.collection('financas').doc('lucas-nicole');
+  docRef.onSnapshot(snap => {
+    if (!snap.exists) { enviarParaNuvem(); nuvemStatus = 'online'; atualizarIndicadorNuvem(); return; }
+    const d = snap.data();
+    if (!d) return;
+    aplicandoRemoto = true;
+    fixos = d.fixos || fixos;
+    cartaoPessoal = d.cartaoPessoal || cartaoPessoal;
+    cartaoNubank = d.cartaoNubank || cartaoNubank;
+    gastos = d.gastos || gastos;
+    renda = Array.isArray(d.renda) ? d.renda : renda;
+    poupancaInicial = typeof d.poupancaInicial === 'number' ? d.poupancaInicial : poupancaInicial;
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:3,fixos,cartaoPessoal,cartaoNubank,gastos,curMesIdx,renda,poupancaInicial})); } catch(e){}
+    aplicandoRemoto = false;
+    nuvemStatus = 'online'; atualizarIndicadorNuvem();
+    renderAll();
+  }, erro => { console.error('Erro ao sincronizar:', erro); nuvemStatus = 'erro'; atualizarIndicadorNuvem(); });
+}
+
+function mostrarLogin() {
+  nuvemStatus = 'offline'; atualizarIndicadorNuvem();
+  const el = document.getElementById('loginBackdrop');
+  if (el) el.classList.add('open');
+}
+function esconderLogin() {
+  const el = document.getElementById('loginBackdrop');
+  if (el) el.classList.remove('open');
+}
+function fazerLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const senha = document.getElementById('loginSenha').value;
+  const erroEl = document.getElementById('loginErro');
+  erroEl.textContent = '';
+  if (!email || !senha) { erroEl.textContent = 'Preencha email e senha.'; return; }
+  firebase.auth().signInWithEmailAndPassword(email, senha)
+    .catch(erro => {
+      erroEl.textContent = (erro.code === 'auth/invalid-credential' || erro.code === 'auth/wrong-password' || erro.code === 'auth/user-not-found')
+        ? 'Email ou senha incorretos.'
+        : 'Erro ao entrar: ' + erro.message;
+    });
+}
+function loginKeydown(ev) { if (ev.key === 'Enter') fazerLogin(); }
+function fazerLogout() {
+  if (typeof firebase !== 'undefined' && firebase.auth) firebase.auth().signOut();
+}
+
+function enviarParaNuvem() {
+  if (aplicandoRemoto || !docRef) return;
+  docRef.set({fixos,cartaoPessoal,cartaoNubank,gastos,curMesIdx,renda,poupancaInicial})
+    .catch(erro => { console.error('Erro ao salvar na nuvem:', erro); nuvemStatus = 'erro'; atualizarIndicadorNuvem(); });
+}
 
 const RENDA_INICIAL = [
   {id:1, nome:'Lucas',         vals:[3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600,3600]},
@@ -404,6 +528,7 @@ function estadoInicial() {
 
 function salvar() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:3,fixos,cartaoPessoal,cartaoNubank,gastos,curMesIdx,renda,poupancaInicial})); } catch(e){}
+  enviarParaNuvem();
 }
 function carregar() {
   try {
@@ -986,6 +1111,7 @@ populateMeses();
 verificarBotaoAno();
 document.getElementById('gData').value=todayStr();
 renderAll();
+initFirebase();
 </script>
 </body>
 </html>
