@@ -239,7 +239,7 @@
 <div id="pane-fixos" style="display:none">
   <div class="card">
     <div class="card-title">Boletos &amp; contas fixas mensais</div>
-    <table><thead><tr><th>Conta</th><th style="text-align:right">Valor</th><th>Ação</th></tr></thead>
+    <table><thead><tr><th>Conta</th><th style="text-align:right">Valor</th><th style="text-align:center">Pago</th><th>Ação</th></tr></thead>
     <tbody id="fixosBody"></tbody></table>
     <div class="add-form fr3">
       <div><label class="lbl">Nova conta</label><input type="text" id="fNome" placeholder="Ex: Streaming"></div>
@@ -253,7 +253,7 @@
 <div id="pane-cartao" style="display:none">
   <div class="card">
     <div class="card-title">Cartão pessoal — Lucas <span class="badge badge-amber">parcelados</span></div>
-    <table><thead><tr><th>Item</th><th style="text-align:right">R$/mês</th><th>Até</th><th></th></tr></thead>
+    <table><thead><tr><th>Item</th><th style="text-align:right">R$/mês</th><th>Até</th><th style="text-align:center">Pago</th><th></th></tr></thead>
     <tbody id="cpBody"></tbody></table>
     <div class="add-form fr4">
       <div><label class="lbl">Item</label><input type="text" id="cpNome"></div>
@@ -265,7 +265,7 @@
   <div class="card">
     <div class="card-title">Cartão conjunto — Nubank <span class="badge badge-green">casal</span></div>
     <div class="sub-title">Parcelados fixos</div>
-    <table><thead><tr><th>Item</th><th style="text-align:right">R$/mês</th><th>Até</th><th></th></tr></thead>
+    <table><thead><tr><th>Item</th><th style="text-align:right">R$/mês</th><th>Até</th><th style="text-align:center">Pago</th><th></th></tr></thead>
     <tbody id="cnBody"></tbody></table>
     <div class="add-form fr4">
       <div><label class="lbl">Item</label><input type="text" id="cnNome"></div>
@@ -507,22 +507,22 @@ let chartPainel=null, chartCat=null, chartProj=null;
 function estadoInicial() {
   return {
     fixos:[
-      {id:1,nome:'Emcash',vals:[1365.79,1372.09,1375.63,1380.27,1386.08,1390.78,1394.35,1400.79,1404.38,1409.71,1415.63,1419.85,1425.24,1430.65,1435.5,1440.35]},
-      {id:2,nome:'Financiamento',vals:[1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1300]},
-      {id:3,nome:'Condomínio',vals:[450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450]},
-      {id:4,nome:'Internet',vals:[150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150]},
-      {id:5,nome:'Luz',vals:[150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150]},
-      {id:6,nome:'Água',vals:[100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100]},
+      {id:1,nome:'Emcash',vals:[1365.79,1372.09,1375.63,1380.27,1386.08,1390.78,1394.35,1400.79,1404.38,1409.71,1415.63,1419.85,1425.24,1430.65,1435.5,1440.35],pago:MESES.map(()=>false)},
+      {id:2,nome:'Financiamento',vals:[1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1210,1300],pago:MESES.map(()=>false)},
+      {id:3,nome:'Condomínio',vals:[450,450,450,450,450,450,450,450,450,450,450,450,450,450,450,450],pago:MESES.map(()=>false)},
+      {id:4,nome:'Internet',vals:[150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150],pago:MESES.map(()=>false)},
+      {id:5,nome:'Luz',vals:[150,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150],pago:MESES.map(()=>false)},
+      {id:6,nome:'Água',vals:[100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100],pago:MESES.map(()=>false)},
     ],
     cartaoPessoal:[
-      {id:1,nome:'PC',val:363.99,parc:8,startMes:-1},
-      {id:2,nome:'Bike',val:119,parc:7,startMes:-1},
-      {id:3,nome:'Lava e Seca',val:380,parc:9,startMes:-1},
-      {id:4,nome:'Cozinha',val:770,parc:10,startMes:-1},
+      {id:1,nome:'PC',val:363.99,parc:8,startMes:-1,pago:MESES.map(()=>false)},
+      {id:2,nome:'Bike',val:119,parc:7,startMes:-1,pago:MESES.map(()=>false)},
+      {id:3,nome:'Lava e Seca',val:380,parc:9,startMes:-1,pago:MESES.map(()=>false)},
+      {id:4,nome:'Cozinha',val:770,parc:10,startMes:-1,pago:MESES.map(()=>false)},
     ],
     cartaoNubank:[
-      {id:1,nome:'Academia',val:220,parc:999,startMes:-1},
-      {id:2,nome:'Pedra',val:285,parc:11,startMes:-1},
+      {id:1,nome:'Academia',val:220,parc:999,startMes:-1,pago:MESES.map(()=>false)},
+      {id:2,nome:'Pedra',val:285,parc:11,startMes:-1,pago:MESES.map(()=>false)},
     ],
     gastos:{},
     curMesIdx:0,
@@ -623,6 +623,7 @@ function gerarAnoSeguinte() {
   fixos.forEach(f => {
     const ultimo = f.vals[f.vals.length-1]||0;
     for(let i=0;i<12;i++) f.vals.push(ultimo);
+    if(Array.isArray(f.pago)) for(let i=0;i<12;i++) f.pago.push(false);
   });
 
   // Estende renda — repete o último valor conhecido
@@ -631,7 +632,9 @@ function gerarAnoSeguinte() {
     for(let i=0;i<12;i++) r.vals.push(ultimo);
   });
 
-  // Estende cartões pessoal e nubank — não precisa, usam startMes+parc
+  // Estende cartões pessoal e nubank — não precisa, usam startMes+parc (só o "pago" precisa acompanhar os novos meses)
+  cartaoPessoal.forEach(c => { if(Array.isArray(c.pago)) for(let i=0;i<12;i++) c.pago.push(false); });
+  cartaoNubank.forEach(c => { if(Array.isArray(c.pago)) for(let i=0;i<12;i++) c.pago.push(false); });
 
   // Atualiza o select
   const sel = document.getElementById('mesSel');
@@ -885,13 +888,26 @@ function addRenda() {
   salvar();renderAll();
 }
 
+function garantirPago(item){ if(!Array.isArray(item.pago)) item.pago=MESES.map(()=>false); return item.pago; }
+
 function renderFixos() {
   const mi=curMesIdx;
   document.getElementById('fixosBody').innerHTML=
-    fixos.map(f=>`<tr><td>${f.nome}</td><td class="mono" style="text-align:right">${fmt(f.vals[mi]||0)}</td>
-    <td><button class="btn btn-ghost btn-sm" onclick="editFixo(${f.id},${mi})">Editar</button>
-    <button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="removeFixo(${f.id})">✕</button></td></tr>`).join('')+
-    `<tr class="tr-total"><td>Total</td><td class="mono" style="text-align:right">${fmt(totalFixo(mi))}</td><td></td></tr>`;
+    fixos.map(f=>{
+      const pago=!!(f.pago&&f.pago[mi]);
+      return `<tr${pago?' class="tr-dim"':''}><td>${f.nome}</td><td class="mono" style="text-align:right">${fmt(f.vals[mi]||0)}</td>
+      <td style="text-align:center"><input type="checkbox" ${pago?'checked':''} onchange="togglePagoFixo(${f.id})" style="width:16px;height:16px;cursor:pointer"></td>
+      <td><button class="btn btn-ghost btn-sm" onclick="editFixo(${f.id},${mi})">Editar</button>
+      <button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="removeFixo(${f.id})">✕</button></td></tr>`;
+    }).join('')+
+    `<tr class="tr-total"><td>Total</td><td class="mono" style="text-align:right">${fmt(totalFixo(mi))}</td><td></td><td></td></tr>`;
+}
+function togglePagoFixo(id){
+  const f=fixos.find(x=>x.id===id);
+  if(!f) return;
+  const pago=garantirPago(f);
+  pago[curMesIdx]=!pago[curMesIdx];
+  salvar();renderFixos();
 }
 function editFixo(id,mi){
   const f=fixos.find(x=>x.id===id);
@@ -906,7 +922,7 @@ function addFixo(){
   const nome=document.getElementById('fNome').value.trim();
   const val=parseFloat(document.getElementById('fVal').value);
   if(!nome||isNaN(val))return;
-  fixos.push({id:Date.now(),nome,vals:MESES.map(()=>val)});
+  fixos.push({id:Date.now(),nome,vals:MESES.map(()=>val),pago:MESES.map(()=>false)});
   document.getElementById('fNome').value='';document.getElementById('fVal').value='';
   salvar();renderAll();
 }
@@ -914,22 +930,42 @@ function addFixo(){
 function renderCartao() {
   const mi=curMesIdx;
   document.getElementById('cpBody').innerHTML=
-    cartaoPessoal.map(c=>{const a=mi>=c.startMes&&mi<c.startMes+c.parc;return`<tr${!a?' class="tr-dim"':''}><td>${c.nome}${!a?' <span class="badge badge-green">quitado</span>':''}</td><td class="mono" style="text-align:right">${a?fmt(c.val):'—'}</td><td style="color:var(--hint)">${ultimaParcela(c)}</td><td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="abrirModal('cp',${c.id})">✏️</button> <button class="btn btn-danger btn-sm" onclick="removeCP(${c.id})">✕</button></td></tr>`;}).join('')+
-    `<tr class="tr-total"><td>Total</td><td class="mono" style="text-align:right">${fmt(totalCP(mi))}</td><td colspan="2"></td></tr>`;
+    cartaoPessoal.map(c=>{
+      const a=mi>=c.startMes&&mi<c.startMes+c.parc;
+      const pago=a&&!!(c.pago&&c.pago[mi]);
+      return `<tr${(!a||pago)?' class="tr-dim"':''}><td>${c.nome}${!a?' <span class="badge badge-green">quitado</span>':''}</td><td class="mono" style="text-align:right">${a?fmt(c.val):'—'}</td><td style="color:var(--hint)">${ultimaParcela(c)}</td>
+      <td style="text-align:center">${a?`<input type="checkbox" ${pago?'checked':''} onchange="togglePagoCartao('cp',${c.id})" style="width:16px;height:16px;cursor:pointer">`:''}</td>
+      <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="abrirModal('cp',${c.id})">✏️</button> <button class="btn btn-danger btn-sm" onclick="removeCP(${c.id})">✕</button></td></tr>`;
+    }).join('')+
+    `<tr class="tr-total"><td>Total</td><td class="mono" style="text-align:right">${fmt(totalCP(mi))}</td><td colspan="3"></td></tr>`;
   document.getElementById('cnBody').innerHTML=
-    cartaoNubank.map(c=>{const a=mi>=c.startMes&&mi<c.startMes+c.parc;return`<tr${!a?' class="tr-dim"':''}><td>${c.nome}${!a?' <span class="badge badge-green">quitado</span>':''}</td><td class="mono" style="text-align:right">${a?fmt(c.val):'—'}</td><td style="color:var(--hint)">${ultimaParcela(c)}</td><td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="abrirModal('cn',${c.id})">✏️</button> <button class="btn btn-danger btn-sm" onclick="removeCN(${c.id})">✕</button></td></tr>`;}).join('');
+    cartaoNubank.map(c=>{
+      const a=mi>=c.startMes&&mi<c.startMes+c.parc;
+      const pago=a&&!!(c.pago&&c.pago[mi]);
+      return `<tr${(!a||pago)?' class="tr-dim"':''}><td>${c.nome}${!a?' <span class="badge badge-green">quitado</span>':''}</td><td class="mono" style="text-align:right">${a?fmt(c.val):'—'}</td><td style="color:var(--hint)">${ultimaParcela(c)}</td>
+      <td style="text-align:center">${a?`<input type="checkbox" ${pago?'checked':''} onchange="togglePagoCartao('cn',${c.id})" style="width:16px;height:16px;cursor:pointer">`:''}</td>
+      <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="abrirModal('cn',${c.id})">✏️</button> <button class="btn btn-danger btn-sm" onclick="removeCN(${c.id})">✕</button></td></tr>`;
+    }).join('');
   document.getElementById('varFixoLabel').textContent=fmt(totalVar(mi));
   document.getElementById('cnTotalLabel').textContent=fmt(totalCN(mi));
+}
+function togglePagoCartao(tipo,id){
+  const lista=tipo==='cp'?cartaoPessoal:cartaoNubank;
+  const c=lista.find(x=>x.id===id);
+  if(!c) return;
+  const pago=garantirPago(c);
+  pago[curMesIdx]=!pago[curMesIdx];
+  salvar();renderCartao();
 }
 
 function addCartaoPessoal(){
   const nome=document.getElementById('cpNome').value.trim();const val=parseFloat(document.getElementById('cpVal').value);const parc=parseInt(document.getElementById('cpParc').value)||1;
-  if(!nome||isNaN(val))return;cartaoPessoal.push({id:Date.now(),nome,val,parc,startMes:curMesIdx});
+  if(!nome||isNaN(val))return;cartaoPessoal.push({id:Date.now(),nome,val,parc,startMes:curMesIdx,pago:MESES.map(()=>false)});
   document.getElementById('cpNome').value='';document.getElementById('cpVal').value='';salvar();renderAll();
 }
 function addCartaoNubank(){
   const nome=document.getElementById('cnNome').value.trim();const val=parseFloat(document.getElementById('cnVal').value);const parc=parseInt(document.getElementById('cnParc').value)||1;
-  if(!nome||isNaN(val))return;cartaoNubank.push({id:Date.now(),nome,val,parc,startMes:curMesIdx});
+  if(!nome||isNaN(val))return;cartaoNubank.push({id:Date.now(),nome,val,parc,startMes:curMesIdx,pago:MESES.map(()=>false)});
   document.getElementById('cnNome').value='';document.getElementById('cnVal').value='';salvar();renderAll();
 }
 function removeCP(id){if(!confirm('Remover?'))return;cartaoPessoal=cartaoPessoal.filter(c=>c.id!==id);salvar();renderAll();}
