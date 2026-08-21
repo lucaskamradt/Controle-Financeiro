@@ -278,9 +278,12 @@
       <span>Fatura mês anterior (gastos do cartão)</span>
       <span id="varFixoLabel" style="font-family:'DM Mono',monospace;font-weight:600;color:var(--red)"></span>
     </div>
-    <div style="margin-top:6px;display:flex;justify-content:space-between;font-weight:600;font-size:14px">
+    <div style="margin-top:6px;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:14px">
       <span>Total cartão conjunto</span>
-      <span id="cnTotalLabel" style="font-family:'DM Mono',monospace;color:var(--red)"></span>
+      <span style="display:flex;align-items:center;gap:8px">
+        <span id="cnTotalLabel" style="font-family:'DM Mono',monospace;color:var(--red)"></span>
+        <span id="faturaCNCheckWrap" title="Marcar fatura como paga"></span>
+      </span>
     </div>
   </div>
 </div>
@@ -441,10 +444,12 @@ function conectarFirestore() {
     fixos = d.fixos || fixos;
     cartaoPessoal = d.cartaoPessoal || cartaoPessoal;
     cartaoNubank = d.cartaoNubank || cartaoNubank;
+    faturaCPPaga = Array.isArray(d.faturaCPPaga) ? d.faturaCPPaga : (faturaCPPaga || MESES.map(()=>false));
+    faturaCNPaga = Array.isArray(d.faturaCNPaga) ? d.faturaCNPaga : (faturaCNPaga || MESES.map(()=>false));
     gastos = d.gastos || gastos;
     renda = Array.isArray(d.renda) ? d.renda : renda;
     poupancaInicial = typeof d.poupancaInicial === 'number' ? d.poupancaInicial : poupancaInicial;
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,gastos,curMesIdx,renda,poupancaInicial})); } catch(e){}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,gastos,curMesIdx,renda,poupancaInicial})); } catch(e){}
     aplicandoRemoto = false;
     nuvemStatus = 'online'; atualizarIndicadorNuvem();
     renderAll();
@@ -481,7 +486,7 @@ function fazerLogout() {
 
 function enviarParaNuvem() {
   if (aplicandoRemoto || !docRef) return;
-  docRef.set({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,gastos,curMesIdx,renda,poupancaInicial})
+  docRef.set({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,gastos,curMesIdx,renda,poupancaInicial})
     .catch(erro => { console.error('Erro ao salvar na nuvem:', erro); nuvemStatus = 'erro'; atualizarIndicadorNuvem(); });
 }
 
@@ -502,6 +507,7 @@ const CAT_NOMES = {
 };
 
 let fixos, cartaoPessoal, cartaoNubank, gastos, curMesIdx;
+let faturaCPPaga, faturaCNPaga; // "fatura paga" do mês — um check por cartão (não por item)
 let chartPainel=null, chartCat=null, chartProj=null;
 
 function estadoInicial() {
@@ -515,15 +521,17 @@ function estadoInicial() {
       {id:6,nome:'Água',vals:[100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100],pago:MESES.map(()=>false)},
     ],
     cartaoPessoal:[
-      {id:1,nome:'PC',val:363.99,parc:8,startMes:-1,pago:MESES.map(()=>false)},
-      {id:2,nome:'Bike',val:119,parc:7,startMes:-1,pago:MESES.map(()=>false)},
-      {id:3,nome:'Lava e Seca',val:380,parc:9,startMes:-1,pago:MESES.map(()=>false)},
-      {id:4,nome:'Cozinha',val:770,parc:10,startMes:-1,pago:MESES.map(()=>false)},
+      {id:1,nome:'PC',val:363.99,parc:8,startMes:-1},
+      {id:2,nome:'Bike',val:119,parc:7,startMes:-1},
+      {id:3,nome:'Lava e Seca',val:380,parc:9,startMes:-1},
+      {id:4,nome:'Cozinha',val:770,parc:10,startMes:-1},
     ],
     cartaoNubank:[
-      {id:1,nome:'Academia',val:220,parc:999,startMes:-1,pago:MESES.map(()=>false)},
-      {id:2,nome:'Pedra',val:285,parc:11,startMes:-1,pago:MESES.map(()=>false)},
+      {id:1,nome:'Academia',val:220,parc:999,startMes:-1},
+      {id:2,nome:'Pedra',val:285,parc:11,startMes:-1},
     ],
+    faturaCPPaga: MESES.map(()=>false),
+    faturaCNPaga: MESES.map(()=>false),
     gastos:{},
     curMesIdx:0,
   };
@@ -546,7 +554,7 @@ function migrarParaV4(d) {
 }
 
 function salvar() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,gastos,curMesIdx,renda,poupancaInicial})); } catch(e){}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,gastos,curMesIdx,renda,poupancaInicial})); } catch(e){}
   enviarParaNuvem();
 }
 function carregar() {
@@ -557,6 +565,8 @@ function carregar() {
       fixos=d.fixos;cartaoPessoal=d.cartaoPessoal;cartaoNubank=d.cartaoNubank;gastos=d.gastos;curMesIdx=d.curMesIdx||0;
       renda=Array.isArray(d.renda)?d.renda:JSON.parse(JSON.stringify(RENDA_INICIAL));
       poupancaInicial=typeof d.poupancaInicial==='number'?d.poupancaInicial:POUPANCA_PADRAO;
+      faturaCPPaga=Array.isArray(d.faturaCPPaga)?d.faturaCPPaga:MESES.map(()=>false);
+      faturaCNPaga=Array.isArray(d.faturaCNPaga)?d.faturaCNPaga:MESES.map(()=>false);
       let versao = d.__v||0;
       if(versao<3){fixos.forEach(f=>f.vals.shift());renda.forEach(r=>r.vals.shift());if(gastos&&gastos['2026-07'])delete gastos['2026-07'];curMesIdx=Math.max(0,curMesIdx-1);versao=3;}
       if(versao<4){d.fixos=fixos;d.renda=renda;d.cartaoPessoal=cartaoPessoal;d.cartaoNubank=cartaoNubank;d.gastos=gastos;d.curMesIdx=curMesIdx;d.__v=versao;migrarParaV4(d);curMesIdx=d.curMesIdx;}
@@ -564,7 +574,7 @@ function carregar() {
       return;
     }
   } catch(e){}
-  const ini=estadoInicial();fixos=ini.fixos;cartaoPessoal=ini.cartaoPessoal;cartaoNubank=ini.cartaoNubank;gastos=ini.gastos;curMesIdx=0;renda=JSON.parse(JSON.stringify(RENDA_INICIAL));poupancaInicial=POUPANCA_PADRAO;
+  const ini=estadoInicial();fixos=ini.fixos;cartaoPessoal=ini.cartaoPessoal;cartaoNubank=ini.cartaoNubank;faturaCPPaga=ini.faturaCPPaga;faturaCNPaga=ini.faturaCNPaga;gastos=ini.gastos;curMesIdx=0;renda=JSON.parse(JSON.stringify(RENDA_INICIAL));poupancaInicial=POUPANCA_PADRAO;
 }
 
 const fmt = v => 'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -633,9 +643,9 @@ function gerarAnoSeguinte() {
     if(Array.isArray(r.pago)) for(let i=0;i<12;i++) r.pago.push(false);
   });
 
-  // Estende cartões pessoal e nubank — não precisa, usam startMes+parc (só o "pago" precisa acompanhar os novos meses)
-  cartaoPessoal.forEach(c => { if(Array.isArray(c.pago)) for(let i=0;i<12;i++) c.pago.push(false); });
-  cartaoNubank.forEach(c => { if(Array.isArray(c.pago)) for(let i=0;i<12;i++) c.pago.push(false); });
+  // Estende cartões pessoal e nubank — os itens não precisam, usam startMes+parc, mas o check de fatura paga é por mês
+  if(Array.isArray(faturaCPPaga)) for(let i=0;i<12;i++) faturaCPPaga.push(false);
+  if(Array.isArray(faturaCNPaga)) for(let i=0;i<12;i++) faturaCNPaga.push(false);
 
   // Atualiza o select
   const sel = document.getElementById('mesSel');
@@ -941,34 +951,32 @@ function addFixo(){
 
 function renderCartao() {
   const mi=curMesIdx;
+  const cpPago=!!(faturaCPPaga&&faturaCPPaga[mi]);
+  const cnPago=!!(faturaCNPaga&&faturaCNPaga[mi]);
   document.getElementById('cpBody').innerHTML=
     cartaoPessoal.filter(c=>mi<c.startMes+c.parc).map(c=>{
       const a=mi>=c.startMes&&mi<c.startMes+c.parc;
-      const pago=a&&!!(c.pago&&c.pago[mi]);
       const rotulo = !a ? ` <span class="badge badge-blue">a partir de ${MESES[c.startMes]?MESES[c.startMes].label:'?'}</span>` : '';
-      return `<tr${(!a||pago)?' class="tr-dim"':''}><td>${c.nome}${rotulo}</td><td class="mono" style="text-align:right">${a?fmt(c.val):'—'}</td><td style="color:var(--hint)">${ultimaParcela(c)}</td>
-      <td style="text-align:center">${a?`<input type="checkbox" ${pago?'checked':''} onchange="togglePagoCartao('cp',${c.id})" style="width:16px;height:16px;cursor:pointer">`:''}</td>
+      return `<tr${(!a||cpPago)?' class="tr-dim"':''}><td>${c.nome}${rotulo}</td><td class="mono" style="text-align:right">${a?fmt(c.val):'—'}</td><td style="color:var(--hint)">${ultimaParcela(c)}</td>
+      <td></td>
       <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="abrirModal('cp',${c.id})">✏️</button> <button class="btn btn-danger btn-sm" onclick="removeCP(${c.id})">✕</button></td></tr>`;
     }).join('')+
-    `<tr class="tr-total"><td>Total</td><td class="mono" style="text-align:right">${fmt(totalCP(mi))}</td><td colspan="3"></td></tr>`;
+    `<tr class="tr-total"><td>Total</td><td class="mono" style="text-align:right">${fmt(totalCP(mi))}</td><td></td><td style="text-align:center"><input type="checkbox" ${cpPago?'checked':''} onchange="toggleFaturaPaga('cp')" style="width:16px;height:16px;cursor:pointer"></td><td></td></tr>`;
   document.getElementById('cnBody').innerHTML=
     cartaoNubank.filter(c=>mi<c.startMes+c.parc).map(c=>{
       const a=mi>=c.startMes&&mi<c.startMes+c.parc;
-      const pago=a&&!!(c.pago&&c.pago[mi]);
       const rotulo = !a ? ` <span class="badge badge-blue">a partir de ${MESES[c.startMes]?MESES[c.startMes].label:'?'}</span>` : '';
-      return `<tr${(!a||pago)?' class="tr-dim"':''}><td>${c.nome}${rotulo}</td><td class="mono" style="text-align:right">${a?fmt(c.val):'—'}</td><td style="color:var(--hint)">${ultimaParcela(c)}</td>
-      <td style="text-align:center">${a?`<input type="checkbox" ${pago?'checked':''} onchange="togglePagoCartao('cn',${c.id})" style="width:16px;height:16px;cursor:pointer">`:''}</td>
+      return `<tr${(!a||cnPago)?' class="tr-dim"':''}><td>${c.nome}${rotulo}</td><td class="mono" style="text-align:right">${a?fmt(c.val):'—'}</td><td style="color:var(--hint)">${ultimaParcela(c)}</td>
+      <td></td>
       <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="abrirModal('cn',${c.id})">✏️</button> <button class="btn btn-danger btn-sm" onclick="removeCN(${c.id})">✕</button></td></tr>`;
     }).join('');
   document.getElementById('varFixoLabel').textContent=fmt(totalVar(mi));
   document.getElementById('cnTotalLabel').textContent=fmt(totalCN(mi));
+  document.getElementById('faturaCNCheckWrap').innerHTML=`<input type="checkbox" ${cnPago?'checked':''} onchange="toggleFaturaPaga('cn')" style="width:16px;height:16px;cursor:pointer">`;
 }
-function togglePagoCartao(tipo,id){
-  const lista=tipo==='cp'?cartaoPessoal:cartaoNubank;
-  const c=lista.find(x=>x.id===id);
-  if(!c) return;
-  const pago=garantirPago(c);
-  pago[curMesIdx]=!pago[curMesIdx];
+function toggleFaturaPaga(tipo){
+  const arr = tipo==='cp' ? faturaCPPaga : faturaCNPaga;
+  arr[curMesIdx]=!arr[curMesIdx];
   salvar();renderCartao();
 }
 
