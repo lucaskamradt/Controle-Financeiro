@@ -163,7 +163,7 @@
   </div>
   <div class="card">
     <div class="card-title">Vencimentos — separe o dinheiro com antecedência</div>
-    <table><thead><tr><th>Vencimento</th><th style="text-align:right">Valor total</th><th style="text-align:center">Separar até</th></tr></thead>
+    <table><thead><tr><th>Vencimento</th><th style="text-align:right">Valor total</th><th style="text-align:center">Separar até</th><th style="text-align:center">Retirado</th></tr></thead>
     <tbody id="vencimentosBody"></tbody></table>
   </div>
   <div class="chart-wrap"><canvas id="chartPainel"></canvas></div>
@@ -493,9 +493,10 @@ function conectarFirestore() {
     gastos = d.gastos || gastos;
     rendasVar = (d.rendasVar && typeof d.rendasVar === 'object') ? d.rendasVar : (rendasVar || {});
     pix = (d.pix && typeof d.pix === 'object') ? d.pix : (pix || {});
+    vencMarcado = (d.vencMarcado && typeof d.vencMarcado === 'object') ? d.vencMarcado : (vencMarcado || {});
     renda = Array.isArray(d.renda) ? d.renda : renda;
     poupancaInicial = typeof d.poupancaInicial === 'number' ? d.poupancaInicial : poupancaInicial;
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,vencCP,vencCN,gastos,rendasVar,pix,curMesIdx,renda,poupancaInicial})); } catch(e){}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,vencCP,vencCN,gastos,rendasVar,pix,vencMarcado,curMesIdx,renda,poupancaInicial})); } catch(e){}
     aplicandoRemoto = false;
     nuvemStatus = 'online'; atualizarIndicadorNuvem();
     renderAll();
@@ -532,7 +533,7 @@ function fazerLogout() {
 
 function enviarParaNuvem() {
   if (aplicandoRemoto || !docRef) return;
-  docRef.set({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,vencCP,vencCN,gastos,rendasVar,pix,curMesIdx,renda,poupancaInicial})
+  docRef.set({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,vencCP,vencCN,gastos,rendasVar,pix,vencMarcado,curMesIdx,renda,poupancaInicial})
     .catch(erro => { console.error('Erro ao salvar na nuvem:', erro); nuvemStatus = 'erro'; atualizarIndicadorNuvem(); });
 }
 
@@ -557,6 +558,7 @@ let faturaCPPaga, faturaCNPaga; // "fatura paga" do mês — um check por cartã
 let vencCP, vencCN; // dia do vencimento da fatura de cada cartão (1-31, ou null)
 let rendasVar; // renda variável: {mesKey: [{id,desc,val,data}]}
 let pix; // pix à vista: {mesKey: [{id,desc,val,data}]} — mesKey é o mês SELECIONADO no app na hora do lançamento, não a data
+let vencMarcado; // {"mesKey|dia": true} — marcado quando já tirou da poupança o total daquele dia de vencimento
 let chartPainel=null, chartCat=null, chartProj=null;
 
 function estadoInicial() {
@@ -586,6 +588,7 @@ function estadoInicial() {
     gastos:{},
     rendasVar:{},
     pix:{},
+    vencMarcado:{},
     curMesIdx:0,
   };
 }
@@ -607,7 +610,7 @@ function migrarParaV4(d) {
 }
 
 function salvar() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,vencCP,vencCN,gastos,rendasVar,pix,curMesIdx,renda,poupancaInicial})); } catch(e){}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,vencCP,vencCN,gastos,rendasVar,pix,vencMarcado,curMesIdx,renda,poupancaInicial})); } catch(e){}
   enviarParaNuvem();
 }
 function carregar() {
@@ -619,6 +622,7 @@ function carregar() {
       renda=Array.isArray(d.renda)?d.renda:JSON.parse(JSON.stringify(RENDA_INICIAL));
       rendasVar=(d.rendasVar&&typeof d.rendasVar==='object')?d.rendasVar:{};
       pix=(d.pix&&typeof d.pix==='object')?d.pix:{};
+      vencMarcado=(d.vencMarcado&&typeof d.vencMarcado==='object')?d.vencMarcado:{};
       poupancaInicial=typeof d.poupancaInicial==='number'?d.poupancaInicial:POUPANCA_PADRAO;
       faturaCPPaga=Array.isArray(d.faturaCPPaga)?d.faturaCPPaga:MESES.map(()=>false);
       faturaCNPaga=Array.isArray(d.faturaCNPaga)?d.faturaCNPaga:MESES.map(()=>false);
@@ -631,7 +635,7 @@ function carregar() {
       return;
     }
   } catch(e){}
-  const ini=estadoInicial();fixos=ini.fixos;cartaoPessoal=ini.cartaoPessoal;cartaoNubank=ini.cartaoNubank;faturaCPPaga=ini.faturaCPPaga;faturaCNPaga=ini.faturaCNPaga;vencCP=ini.vencCP;vencCN=ini.vencCN;gastos=ini.gastos;rendasVar=ini.rendasVar;pix=ini.pix;curMesIdx=0;renda=JSON.parse(JSON.stringify(RENDA_INICIAL));poupancaInicial=POUPANCA_PADRAO;
+  const ini=estadoInicial();fixos=ini.fixos;cartaoPessoal=ini.cartaoPessoal;cartaoNubank=ini.cartaoNubank;faturaCPPaga=ini.faturaCPPaga;faturaCNPaga=ini.faturaCNPaga;vencCP=ini.vencCP;vencCN=ini.vencCN;gastos=ini.gastos;rendasVar=ini.rendasVar;pix=ini.pix;vencMarcado=ini.vencMarcado;curMesIdx=0;renda=JSON.parse(JSON.stringify(RENDA_INICIAL));poupancaInicial=POUPANCA_PADRAO;
 }
 
 const fmt = v => 'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -835,22 +839,36 @@ function renderVencimentos() {
   const body=document.getElementById('vencimentosBody');
   if(!body) return;
   if(!dias.length){
-    body.innerHTML=`<tr><td colspan="3" class="empty">Nenhuma conta com vencimento cadastrado ainda. Clique em "Vencimento" nas Contas fixas ou nos Cartões pra definir.</td></tr>`;
+    body.innerHTML=`<tr><td colspan="4" class="empty">Nenhuma conta com vencimento cadastrado ainda. Clique em "Vencimento" nas Contas fixas ou nos Cartões pra definir.</td></tr>`;
     return;
   }
   const hoje=new Date(); hoje.setHours(0,0,0,0);
   const hojeStr=ymd(hoje);
   body.innerHTML=dias.map(dia=>{
-    const total=porDia[dia];
+    const total=Math.round(porDia[dia]*100)/100;
+    const chave=mesKeyStr+'|'+dia;
+    const retirado=!!vencMarcado[chave];
     const limite=diaSepararAte(mesKeyStr,dia);
     const limiteStr=ymd(limite);
     const diffDias=Math.round((new Date(limiteStr)-new Date(hojeStr))/86400000);
     let estilo='color:var(--hint)',tag='';
-    if(diffDias<0){ estilo='color:var(--red);font-weight:600'; tag=' ⚠️ atrasado'; }
-    else if(diffDias===0){ estilo='color:var(--red);font-weight:600'; tag=' 🔴 separar hoje!'; }
-    else if(diffDias<=2){ estilo='color:var(--amber);font-weight:600'; tag=' 🟡 em breve'; }
-    return `<tr><td>Dia ${dia}</td><td class="mono" style="text-align:right">${fmt(total)}</td><td style="text-align:center;${estilo}">${limiteStr.split('-').reverse().join('/')}${tag}</td></tr>`;
+    if(!retirado){
+      if(diffDias<0){ estilo='color:var(--red);font-weight:600'; tag=' ⚠️ atrasado'; }
+      else if(diffDias===0){ estilo='color:var(--red);font-weight:600'; tag=' 🔴 separar hoje!'; }
+      else if(diffDias<=2){ estilo='color:var(--amber);font-weight:600'; tag=' 🟡 em breve'; }
+    }
+    return `<tr${retirado?' class="tr-dim"':''}><td>Dia ${dia}</td><td class="mono" style="text-align:right">${fmt(total)}</td><td style="text-align:center;${estilo}">${limiteStr.split('-').reverse().join('/')}${tag}</td>
+    <td style="text-align:center"><input type="checkbox" ${retirado?'checked':''} onchange="toggleVencRetirado(${dia},${total})" style="width:16px;height:16px;cursor:pointer" title="Já tirei esse valor da poupança"></td></tr>`;
   }).join('');
+}
+function toggleVencRetirado(dia, total) {
+  const mesKeyStr=MESES[curMesIdx].key;
+  const chave=mesKeyStr+'|'+dia;
+  const estava=!!vencMarcado[chave];
+  vencMarcado[chave]=!estava;
+  // Marcar como retirado desconta da poupança atual; desmarcar devolve o valor
+  poupancaInicial=Math.round((poupancaInicial+(estava?total:-total))*100)/100;
+  salvar(); renderVencimentos(); renderBanner();
 }
 
 function renderGastos() {
@@ -1429,6 +1447,7 @@ carregar();
 if(!renda) renda=JSON.parse(JSON.stringify(RENDA_INICIAL));
 if(!rendasVar) rendasVar={};
 if(!pix) pix={};
+if(!vencMarcado) vencMarcado={};
 populateMeses();
 verificarBotaoAno();
 document.getElementById('gData').value=todayStr();
