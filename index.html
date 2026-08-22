@@ -239,11 +239,12 @@
 <div id="pane-fixos" style="display:none">
   <div class="card">
     <div class="card-title">Boletos &amp; contas fixas mensais</div>
-    <table><thead><tr><th>Conta</th><th style="text-align:right">Valor</th><th style="text-align:center">Pago</th><th>Ação</th></tr></thead>
+    <table><thead><tr><th>Conta</th><th style="text-align:right">Valor</th><th style="text-align:center">Vencimento</th><th style="text-align:center">Pago</th><th>Ação</th></tr></thead>
     <tbody id="fixosBody"></tbody></table>
-    <div class="add-form fr3">
+    <div class="add-form fr4">
       <div><label class="lbl">Nova conta</label><input type="text" id="fNome" placeholder="Ex: Streaming"></div>
       <div><label class="lbl">Valor (R$)</label><input type="number" id="fVal" step="0.01"></div>
+      <div><label class="lbl">Vencimento (dia)</label><input type="number" id="fVenc" min="1" max="31" placeholder="opcional"></div>
       <button class="btn" onclick="addFixo()">+ Add</button>
     </div>
   </div>
@@ -921,11 +922,12 @@ function renderFixos() {
     fixos.map(f=>{
       const pago=!!(f.pago&&f.pago[mi]);
       return `<tr${pago?' class="tr-dim"':''}><td>${f.nome}</td><td class="mono" style="text-align:right">${fmt(f.vals[mi]||0)}</td>
+      <td style="text-align:center;cursor:pointer" onclick="editVencimento(${f.id})" title="Clique para editar">${f.venc?('Dia '+f.venc):'<span style="color:var(--hint)">—</span>'}</td>
       <td style="text-align:center"><input type="checkbox" ${pago?'checked':''} onchange="togglePagoFixo(${f.id})" style="width:16px;height:16px;cursor:pointer"></td>
       <td><button class="btn btn-ghost btn-sm" onclick="editFixo(${f.id},${mi})">Editar</button>
       <button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="removeFixo(${f.id})">✕</button></td></tr>`;
     }).join('')+
-    `<tr class="tr-total"><td>Total</td><td class="mono" style="text-align:right">${fmt(totalFixo(mi))}</td><td></td><td></td></tr>`;
+    `<tr class="tr-total"><td>Total</td><td class="mono" style="text-align:right">${fmt(totalFixo(mi))}</td><td></td><td></td><td></td></tr>`;
 }
 function togglePagoFixo(id){
   const f=fixos.find(x=>x.id===id);
@@ -933,6 +935,16 @@ function togglePagoFixo(id){
   const pago=garantirPago(f);
   pago[curMesIdx]=!pago[curMesIdx];
   salvar();renderFixos();
+}
+function editVencimento(id){
+  const f=fixos.find(x=>x.id===id);
+  if(!f) return;
+  const resp=prompt('Dia do vencimento de '+f.nome+' (1 a 31, deixe vazio para remover):', f.venc||'');
+  if(resp===null) return;
+  if(resp.trim()===''){ f.venc=null; salvar(); renderFixos(); return; }
+  const n=parseInt(resp);
+  if(isNaN(n)||n<1||n>31){ alert('Digite um dia válido entre 1 e 31.'); return; }
+  f.venc=n; salvar(); renderFixos();
 }
 function editFixo(id,mi){
   const f=fixos.find(x=>x.id===id);
@@ -946,9 +958,12 @@ function removeFixo(id){if(!confirm('Remover?'))return;fixos=fixos.filter(f=>f.i
 function addFixo(){
   const nome=document.getElementById('fNome').value.trim();
   const val=parseFloat(document.getElementById('fVal').value);
+  const vencRaw=document.getElementById('fVenc').value;
+  const venc=vencRaw?parseInt(vencRaw):null;
   if(!nome||isNaN(val))return;
-  fixos.push({id:Date.now(),nome,vals:MESES.map(()=>val),pago:MESES.map(()=>false)});
-  document.getElementById('fNome').value='';document.getElementById('fVal').value='';
+  if(venc!==null&&(isNaN(venc)||venc<1||venc>31)){ alert('Dia de vencimento inválido (use 1 a 31).'); return; }
+  fixos.push({id:Date.now(),nome,vals:MESES.map(()=>val),pago:MESES.map(()=>false),venc});
+  document.getElementById('fNome').value='';document.getElementById('fVal').value='';document.getElementById('fVenc').value='';
   salvar();renderAll();
 }
 
