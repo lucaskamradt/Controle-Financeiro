@@ -193,6 +193,22 @@
   </div>
 
   <div class="card">
+    <div class="card-title">Pix à vista <span class="badge badge-blue">sai da poupança</span></div>
+    <p style="font-size:12px;color:var(--hint);margin-bottom:1rem">Pago na hora — não entra na fatura do cartão. Desconta direto da poupança atual, no mês selecionado agora (<span id="pixMesLabel" style="color:var(--accent)"></span>).</p>
+    <div class="add-form fr4">
+      <div><label class="lbl">Descrição</label><input type="text" id="pxDesc" placeholder="Ex: Feira, padaria..."></div>
+      <div><label class="lbl">Valor (R$)</label><input type="number" id="pxVal" step="0.01" placeholder="0,00"></div>
+      <div><label class="lbl">Data (informativo)</label><input type="date" id="pxData"></div>
+      <button class="btn" onclick="addPix()">+ Adicionar</button>
+    </div>
+    <div id="pixLista"></div>
+    <div class="total-var-bar">
+      <span style="font-weight:600">Total Pix do mês</span>
+      <span id="pixTotalLabel" style="font-family:'DM Mono',monospace;font-weight:600;color:var(--accent);font-size:15px"></span>
+    </div>
+  </div>
+
+  <div class="card">
     <div class="card-title">Gastos de <span id="gastosTitle" style="color:var(--accent)"></span></div>
 
     <div class="filtro-row">
@@ -236,6 +252,22 @@
       <div><label class="lbl">Nova fonte de renda</label><input type="text" id="rNome" placeholder="Ex: Freelance, Aluguel..."></div>
       <div><label class="lbl">Valor (R$)</label><input type="number" id="rVal" step="0.01" placeholder="0,00"></div>
       <button class="btn" onclick="addRenda()">+ Adicionar</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Renda variável — <span id="rendaVarMesLabel" style="color:var(--accent)"></span></div>
+    <p style="font-size:12px;color:var(--hint);margin-bottom:1rem">Pra bicos, vendas, bônus... entra só no mês da data lançada, não se repete nos meses seguintes.</p>
+    <div class="add-form fr4">
+      <div><label class="lbl">Descrição</label><input type="text" id="rvDesc" placeholder="Ex: Bico, venda, bônus..."></div>
+      <div><label class="lbl">Valor (R$)</label><input type="number" id="rvVal" step="0.01" placeholder="0,00"></div>
+      <div><label class="lbl">Data</label><input type="date" id="rvData"></div>
+      <button class="btn" onclick="addRendaVar()">+ Adicionar</button>
+    </div>
+    <div id="rendaVarLista"></div>
+    <div class="total-var-bar">
+      <span style="font-weight:600">Total renda variável do mês</span>
+      <span id="rendaVarTotalLabel" style="font-family:'DM Mono',monospace;font-weight:600;color:var(--green);font-size:15px"></span>
     </div>
   </div>
 </div>
@@ -459,9 +491,11 @@ function conectarFirestore() {
     vencCP = typeof d.vencCP === 'number' ? d.vencCP : (vencCP || null);
     vencCN = typeof d.vencCN === 'number' ? d.vencCN : (vencCN || null);
     gastos = d.gastos || gastos;
+    rendasVar = (d.rendasVar && typeof d.rendasVar === 'object') ? d.rendasVar : (rendasVar || {});
+    pix = (d.pix && typeof d.pix === 'object') ? d.pix : (pix || {});
     renda = Array.isArray(d.renda) ? d.renda : renda;
     poupancaInicial = typeof d.poupancaInicial === 'number' ? d.poupancaInicial : poupancaInicial;
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,vencCP,vencCN,gastos,curMesIdx,renda,poupancaInicial})); } catch(e){}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,vencCP,vencCN,gastos,rendasVar,pix,curMesIdx,renda,poupancaInicial})); } catch(e){}
     aplicandoRemoto = false;
     nuvemStatus = 'online'; atualizarIndicadorNuvem();
     renderAll();
@@ -498,7 +532,7 @@ function fazerLogout() {
 
 function enviarParaNuvem() {
   if (aplicandoRemoto || !docRef) return;
-  docRef.set({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,vencCP,vencCN,gastos,curMesIdx,renda,poupancaInicial})
+  docRef.set({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,vencCP,vencCN,gastos,rendasVar,pix,curMesIdx,renda,poupancaInicial})
     .catch(erro => { console.error('Erro ao salvar na nuvem:', erro); nuvemStatus = 'erro'; atualizarIndicadorNuvem(); });
 }
 
@@ -521,6 +555,8 @@ const CAT_NOMES = {
 let fixos, cartaoPessoal, cartaoNubank, gastos, curMesIdx;
 let faturaCPPaga, faturaCNPaga; // "fatura paga" do mês — um check por cartão (não por item)
 let vencCP, vencCN; // dia do vencimento da fatura de cada cartão (1-31, ou null)
+let rendasVar; // renda variável: {mesKey: [{id,desc,val,data}]}
+let pix; // pix à vista: {mesKey: [{id,desc,val,data}]} — mesKey é o mês SELECIONADO no app na hora do lançamento, não a data
 let chartPainel=null, chartCat=null, chartProj=null;
 
 function estadoInicial() {
@@ -548,6 +584,8 @@ function estadoInicial() {
     vencCP: null,
     vencCN: null,
     gastos:{},
+    rendasVar:{},
+    pix:{},
     curMesIdx:0,
   };
 }
@@ -569,7 +607,7 @@ function migrarParaV4(d) {
 }
 
 function salvar() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,vencCP,vencCN,gastos,curMesIdx,renda,poupancaInicial})); } catch(e){}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,vencCP,vencCN,gastos,rendasVar,pix,curMesIdx,renda,poupancaInicial})); } catch(e){}
   enviarParaNuvem();
 }
 function carregar() {
@@ -579,6 +617,8 @@ function carregar() {
       const d=JSON.parse(raw);
       fixos=d.fixos;cartaoPessoal=d.cartaoPessoal;cartaoNubank=d.cartaoNubank;gastos=d.gastos;curMesIdx=d.curMesIdx||0;
       renda=Array.isArray(d.renda)?d.renda:JSON.parse(JSON.stringify(RENDA_INICIAL));
+      rendasVar=(d.rendasVar&&typeof d.rendasVar==='object')?d.rendasVar:{};
+      pix=(d.pix&&typeof d.pix==='object')?d.pix:{};
       poupancaInicial=typeof d.poupancaInicial==='number'?d.poupancaInicial:POUPANCA_PADRAO;
       faturaCPPaga=Array.isArray(d.faturaCPPaga)?d.faturaCPPaga:MESES.map(()=>false);
       faturaCNPaga=Array.isArray(d.faturaCNPaga)?d.faturaCNPaga:MESES.map(()=>false);
@@ -591,7 +631,7 @@ function carregar() {
       return;
     }
   } catch(e){}
-  const ini=estadoInicial();fixos=ini.fixos;cartaoPessoal=ini.cartaoPessoal;cartaoNubank=ini.cartaoNubank;faturaCPPaga=ini.faturaCPPaga;faturaCNPaga=ini.faturaCNPaga;vencCP=ini.vencCP;vencCN=ini.vencCN;gastos=ini.gastos;curMesIdx=0;renda=JSON.parse(JSON.stringify(RENDA_INICIAL));poupancaInicial=POUPANCA_PADRAO;
+  const ini=estadoInicial();fixos=ini.fixos;cartaoPessoal=ini.cartaoPessoal;cartaoNubank=ini.cartaoNubank;faturaCPPaga=ini.faturaCPPaga;faturaCNPaga=ini.faturaCNPaga;vencCP=ini.vencCP;vencCN=ini.vencCN;gastos=ini.gastos;rendasVar=ini.rendasVar;pix=ini.pix;curMesIdx=0;renda=JSON.parse(JSON.stringify(RENDA_INICIAL));poupancaInicial=POUPANCA_PADRAO;
 }
 
 const fmt = v => 'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -611,7 +651,8 @@ const totalVar = mi => {
   return (gastos[mk]||[]).reduce((a,g)=>a+g.val,0);
 };
 
-const rendaTotal = mi => renda.reduce((a,r)=>a+(r.vals[mi]||0),0);
+const totalRendaVar = mi => (rendasVar[MESES[mi].key]||[]).reduce((a,r)=>a+r.val,0);
+const rendaTotal = mi => renda.reduce((a,r)=>a+(r.vals[mi]||0),0) + totalRendaVar(mi);
 const totalFixo = mi => fixos.reduce((a,f)=>a+(f.vals[mi]||0),0);
 const totalCP = mi => cartaoPessoal.reduce((a,c)=>a+(mi>=c.startMes&&mi<c.startMes+c.parc?c.val:0),0);
 const totalCNFixo = mi => cartaoNubank.reduce((a,c)=>a+(mi>=c.startMes&&mi<c.startMes+c.parc?c.val:0),0);
@@ -727,19 +768,17 @@ function renderAll() {
 }
 
 function renderBanner() {
-  const mi=curMesIdx,pArr=calcPoupanca();
-  const pAntes=mi===0?poupancaInicial:pArr[mi-1];
-  const sal=saldoMes(mi),pDepois=pArr[mi],pos=sal>=0;
+  const mi=curMesIdx;
+  const sal=saldoMes(mi),pos=sal>=0;
   document.getElementById('poupBanner').innerHTML=`
-    <div class="poup-item" onclick="editarPoupanca()" style="cursor:pointer" title="Clique para editar a poupança inicial"><div class="poup-lbl">Poupança atual ✎</div><div class="poup-val" style="color:var(--accent)">${fmt(pAntes)}</div></div>
-    <div class="poup-arrow ${pos?'poup-pos':'poup-neg'}">${pos?'↑ Guardando':'↓ Retirando'} ${fmt(Math.abs(sal))}</div>
-    <div class="poup-item" style="text-align:right"><div class="poup-lbl">Após o mês</div><div class="poup-val" style="color:${pDepois>=0?'#6FCF97':'#F2A0A8'}">${fmt(pDepois)}</div></div>
+    <div class="poup-item" onclick="editarPoupanca()" style="cursor:pointer" title="Clique para editar a poupança atual"><div class="poup-lbl">Poupança atual ✎</div><div class="poup-val" style="color:var(--accent)">${fmt(poupancaInicial)}</div></div>
+    <div class="poup-arrow ${pos?'poup-pos':'poup-neg'}">${pos?'↑ Guardando':'↓ Retirando'} ${fmt(Math.abs(sal))} neste mês</div>
   `;
 }
 
 function editarPoupanca() {
   const atual = poupancaInicial.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  const resp = prompt('Poupança inicial (valor guardado antes do primeiro mês):', atual);
+  const resp = prompt('Poupança atual (valor guardado agora):', atual);
   if(resp===null) return;
   const v = parseFloat(resp.replace(/\./g,'').replace(',','.'));
   if(isNaN(v)){ alert('Valor inválido. Use o formato 20.000,00'); return; }
@@ -890,6 +929,51 @@ function renderGastos() {
   } else {
     document.getElementById('legendCat').innerHTML='';
   }
+
+  renderPix();
+}
+
+function renderPix() {
+  const mi=curMesIdx;
+  const mk=MESES[mi].key;
+  document.getElementById('pixMesLabel').textContent=MESES[mi].label;
+  const lista=(pix[mk]||[]).slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  const el=document.getElementById('pixLista');
+  if(!lista.length){
+    el.innerHTML='<div class="empty" style="padding:.75rem 0">Nenhum Pix lançado em '+MESES[mi].label+'</div>';
+  } else {
+    el.innerHTML=lista.map(p=>`
+      <div class="gasto-item">
+        <div class="gasto-desc">${p.desc}</div>
+        ${p.data?`<span class="gasto-data">${p.data.split('-').reverse().slice(0,2).join('/')}</span>`:''}
+        <span style="font-family:'DM Mono',monospace;font-weight:500;color:var(--accent);white-space:nowrap">${fmt(p.val)}</span>
+        <button class="btn btn-danger btn-sm" onclick="removePix(${p.id})">✕</button>
+      </div>`).join('');
+  }
+  document.getElementById('pixTotalLabel').textContent=fmt((pix[mk]||[]).reduce((a,p)=>a+p.val,0));
+}
+function addPix() {
+  const desc=document.getElementById('pxDesc').value.trim();
+  const val=parseFloat(document.getElementById('pxVal').value);
+  const data=document.getElementById('pxData').value; // opcional, só informativo — não define o mês
+  if(!desc||isNaN(val)||val<=0){alert('Preencha descrição e valor.');return;}
+  const mk=MESES[curMesIdx].key; // conta pro mês selecionado no app agora, não pela data digitada
+  if(!pix[mk]) pix[mk]=[];
+  pix[mk].push({id:Date.now(),desc,val,data:data||null});
+  poupancaInicial=Math.round((poupancaInicial-val)*100)/100;
+  document.getElementById('pxDesc').value='';
+  document.getElementById('pxVal').value='';
+  salvar(); renderAll();
+}
+function removePix(id) {
+  let removedVal=0, achou=false;
+  Object.keys(pix).forEach(mk=>{
+    const item=(pix[mk]||[]).find(p=>p.id===id);
+    if(item){ removedVal=item.val; achou=true; }
+    pix[mk]=(pix[mk]||[]).filter(p=>p.id!==id);
+  });
+  if(achou) poupancaInicial=Math.round((poupancaInicial+removedVal)*100)/100;
+  salvar(); renderAll();
 }
 
 function addGasto() {
@@ -932,13 +1016,55 @@ function renderRenda() {
     </tr>`;
     }).join('')+
     `<tr class="tr-total"><td>Total</td><td class="mono" style="text-align:right">${fmt(rendaTotal(mi))}</td><td></td><td></td></tr>`;
+  renderRendaVar();
+}
+function renderRendaVar() {
+  const mi=curMesIdx;
+  const mk=MESES[mi].key;
+  document.getElementById('rendaVarMesLabel').textContent=MESES[mi].label;
+  const lista=(rendasVar[mk]||[]).slice().sort((a,b)=>b.data.localeCompare(a.data));
+  const el=document.getElementById('rendaVarLista');
+  if(!lista.length){
+    el.innerHTML='<div class="empty" style="padding:.75rem 0">Nenhuma renda variável lançada em '+MESES[mi].label+'</div>';
+  } else {
+    el.innerHTML=lista.map(r=>`
+      <div class="gasto-item">
+        <div class="gasto-desc">${r.desc}</div>
+        <span class="gasto-data">${r.data.split('-').reverse().slice(0,2).join('/')}</span>
+        <span style="font-family:'DM Mono',monospace;font-weight:500;color:var(--green);white-space:nowrap">${fmt(r.val)}</span>
+        <button class="btn btn-danger btn-sm" onclick="removeRendaVar(${r.id})">✕</button>
+      </div>`).join('');
+  }
+  document.getElementById('rendaVarTotalLabel').textContent=fmt(totalRendaVar(mi));
+}
+function addRendaVar() {
+  const desc=document.getElementById('rvDesc').value.trim();
+  const val=parseFloat(document.getElementById('rvVal').value);
+  const data=document.getElementById('rvData').value;
+  if(!desc||isNaN(val)||val<=0||!data){alert('Preencha descrição, valor e data.');return;}
+  const mk=data.slice(0,7);
+  if(!rendasVar[mk]) rendasVar[mk]=[];
+  rendasVar[mk].push({id:Date.now(),desc,val,data});
+  document.getElementById('rvDesc').value='';
+  document.getElementById('rvVal').value='';
+  salvar(); renderAll();
+}
+function removeRendaVar(id) {
+  Object.keys(rendasVar).forEach(mk=>{
+    rendasVar[mk]=(rendasVar[mk]||[]).filter(r=>r.id!==id);
+  });
+  salvar(); renderAll();
 }
 function toggleRecebidoRenda(id){
   const r=renda.find(x=>x.id===id);
   if(!r) return;
   const pago=garantirPago(r);
-  pago[curMesIdx]=!pago[curMesIdx];
-  salvar();renderRenda();
+  const estava=pago[curMesIdx];
+  pago[curMesIdx]=!estava;
+  const valor=r.vals[curMesIdx]||0;
+  // Marcar como recebido soma na poupança atual; desmarcar devolve o valor
+  poupancaInicial=Math.round((poupancaInicial+(estava?-valor:valor))*100)/100;
+  salvar();renderRenda();renderBanner();
 }
 
 function editRenda(id, mi) {
@@ -1297,9 +1423,13 @@ function gerarPDFAnual(){
 // INIT
 carregar();
 if(!renda) renda=JSON.parse(JSON.stringify(RENDA_INICIAL));
+if(!rendasVar) rendasVar={};
+if(!pix) pix={};
 populateMeses();
 verificarBotaoAno();
 document.getElementById('gData').value=todayStr();
+document.getElementById('rvData').value=todayStr();
+document.getElementById('pxData').value=todayStr();
 renderAll();
 initFirebase();
 </script>
