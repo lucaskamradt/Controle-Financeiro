@@ -772,11 +772,8 @@ function renderAll() {
 }
 
 function renderBanner() {
-  const mi=curMesIdx;
-  const sal=saldoMes(mi),pos=sal>=0;
   document.getElementById('poupBanner').innerHTML=`
     <div class="poup-item" onclick="editarPoupanca()" style="cursor:pointer" title="Clique para editar a poupança atual"><div class="poup-lbl">Poupança atual ✎</div><div class="poup-val" style="color:var(--accent)">${fmt(poupancaInicial)}</div></div>
-    <div class="poup-arrow ${pos?'poup-pos':'poup-neg'}">${pos?'↑ Guardando':'↓ Retirando'} ${fmt(Math.abs(sal))} neste mês</div>
   `;
 }
 
@@ -1067,14 +1064,20 @@ function addRendaVar() {
   const mk=MESES[curMesIdx].key; // conta pro mês selecionado no app agora, mesma lógica do Pix
   if(!rendasVar[mk]) rendasVar[mk]=[];
   rendasVar[mk].push({id:Date.now(),desc,val,data:data||null});
+  // Renda variável já é dinheiro recebido de verdade — soma direto na poupança atual
+  poupancaInicial=Math.round((poupancaInicial+val)*100)/100;
   document.getElementById('rvDesc').value='';
   document.getElementById('rvVal').value='';
   salvar(); renderAll();
 }
 function removeRendaVar(id) {
+  let removedVal=0, achou=false;
   Object.keys(rendasVar).forEach(mk=>{
+    const item=(rendasVar[mk]||[]).find(r=>r.id===id);
+    if(item){ removedVal=item.val; achou=true; }
     rendasVar[mk]=(rendasVar[mk]||[]).filter(r=>r.id!==id);
   });
+  if(achou) poupancaInicial=Math.round((poupancaInicial-removedVal)*100)/100;
   salvar(); renderAll();
 }
 function toggleRecebidoRenda(id){
