@@ -161,6 +161,11 @@
     <table><thead><tr><th>Categoria</th><th style="text-align:right">Valor</th><th style="text-align:right">% renda</th></tr></thead>
     <tbody id="resumoBody"></tbody></table>
   </div>
+  <div class="card">
+    <div class="card-title">Vencimentos — separe o dinheiro com antecedência</div>
+    <table><thead><tr><th>Conta</th><th style="text-align:right">Valor</th><th style="text-align:center">Vencimento</th><th style="text-align:center">Separar até</th></tr></thead>
+    <tbody id="vencimentosBody"></tbody></table>
+  </div>
   <div class="chart-wrap"><canvas id="chartPainel"></canvas></div>
 </div>
 
@@ -254,6 +259,7 @@
 <div id="pane-cartao" style="display:none">
   <div class="card">
     <div class="card-title">Cartão pessoal — Lucas <span class="badge badge-amber">parcelados</span></div>
+    <div style="font-size:12px;color:var(--hint);cursor:pointer;margin:-2px 0 8px" onclick="editVencCartao('cp')" title="Clique para editar">Vencimento da fatura: <span id="vencCPLabel">—</span></div>
     <table><thead><tr><th>Item</th><th style="text-align:right">R$/mês</th><th>Até</th><th style="text-align:center">Parcela</th><th style="text-align:center">Pago</th><th></th></tr></thead>
     <tbody id="cpBody"></tbody></table>
     <div class="add-form fr5">
@@ -266,6 +272,7 @@
   </div>
   <div class="card">
     <div class="card-title">Cartão conjunto — Nubank <span class="badge badge-green">casal</span></div>
+    <div style="font-size:12px;color:var(--hint);cursor:pointer;margin:-2px 0 8px" onclick="editVencCartao('cn')" title="Clique para editar">Vencimento da fatura: <span id="vencCNLabel">—</span></div>
     <div class="sub-title">Parcelados fixos</div>
     <table><thead><tr><th>Item</th><th style="text-align:right">R$/mês</th><th>Até</th><th style="text-align:center">Parcela</th><th style="text-align:center">Pago</th><th></th></tr></thead>
     <tbody id="cnBody"></tbody></table>
@@ -449,10 +456,12 @@ function conectarFirestore() {
     cartaoNubank = d.cartaoNubank || cartaoNubank;
     faturaCPPaga = Array.isArray(d.faturaCPPaga) ? d.faturaCPPaga : (faturaCPPaga || MESES.map(()=>false));
     faturaCNPaga = Array.isArray(d.faturaCNPaga) ? d.faturaCNPaga : (faturaCNPaga || MESES.map(()=>false));
+    vencCP = typeof d.vencCP === 'number' ? d.vencCP : (vencCP || null);
+    vencCN = typeof d.vencCN === 'number' ? d.vencCN : (vencCN || null);
     gastos = d.gastos || gastos;
     renda = Array.isArray(d.renda) ? d.renda : renda;
     poupancaInicial = typeof d.poupancaInicial === 'number' ? d.poupancaInicial : poupancaInicial;
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,gastos,curMesIdx,renda,poupancaInicial})); } catch(e){}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,vencCP,vencCN,gastos,curMesIdx,renda,poupancaInicial})); } catch(e){}
     aplicandoRemoto = false;
     nuvemStatus = 'online'; atualizarIndicadorNuvem();
     renderAll();
@@ -489,7 +498,7 @@ function fazerLogout() {
 
 function enviarParaNuvem() {
   if (aplicandoRemoto || !docRef) return;
-  docRef.set({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,gastos,curMesIdx,renda,poupancaInicial})
+  docRef.set({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,vencCP,vencCN,gastos,curMesIdx,renda,poupancaInicial})
     .catch(erro => { console.error('Erro ao salvar na nuvem:', erro); nuvemStatus = 'erro'; atualizarIndicadorNuvem(); });
 }
 
@@ -511,6 +520,7 @@ const CAT_NOMES = {
 
 let fixos, cartaoPessoal, cartaoNubank, gastos, curMesIdx;
 let faturaCPPaga, faturaCNPaga; // "fatura paga" do mês — um check por cartão (não por item)
+let vencCP, vencCN; // dia do vencimento da fatura de cada cartão (1-31, ou null)
 let chartPainel=null, chartCat=null, chartProj=null;
 
 function estadoInicial() {
@@ -535,6 +545,8 @@ function estadoInicial() {
     ],
     faturaCPPaga: MESES.map(()=>false),
     faturaCNPaga: MESES.map(()=>false),
+    vencCP: null,
+    vencCN: null,
     gastos:{},
     curMesIdx:0,
   };
@@ -557,7 +569,7 @@ function migrarParaV4(d) {
 }
 
 function salvar() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,gastos,curMesIdx,renda,poupancaInicial})); } catch(e){}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,vencCP,vencCN,gastos,curMesIdx,renda,poupancaInicial})); } catch(e){}
   enviarParaNuvem();
 }
 function carregar() {
@@ -570,6 +582,8 @@ function carregar() {
       poupancaInicial=typeof d.poupancaInicial==='number'?d.poupancaInicial:POUPANCA_PADRAO;
       faturaCPPaga=Array.isArray(d.faturaCPPaga)?d.faturaCPPaga:MESES.map(()=>false);
       faturaCNPaga=Array.isArray(d.faturaCNPaga)?d.faturaCNPaga:MESES.map(()=>false);
+      vencCP=typeof d.vencCP==='number'?d.vencCP:null;
+      vencCN=typeof d.vencCN==='number'?d.vencCN:null;
       let versao = d.__v||0;
       if(versao<3){fixos.forEach(f=>f.vals.shift());renda.forEach(r=>r.vals.shift());if(gastos&&gastos['2026-07'])delete gastos['2026-07'];curMesIdx=Math.max(0,curMesIdx-1);versao=3;}
       if(versao<4){d.fixos=fixos;d.renda=renda;d.cartaoPessoal=cartaoPessoal;d.cartaoNubank=cartaoNubank;d.gastos=gastos;d.curMesIdx=curMesIdx;d.__v=versao;migrarParaV4(d);curMesIdx=d.curMesIdx;}
@@ -577,7 +591,7 @@ function carregar() {
       return;
     }
   } catch(e){}
-  const ini=estadoInicial();fixos=ini.fixos;cartaoPessoal=ini.cartaoPessoal;cartaoNubank=ini.cartaoNubank;faturaCPPaga=ini.faturaCPPaga;faturaCNPaga=ini.faturaCNPaga;gastos=ini.gastos;curMesIdx=0;renda=JSON.parse(JSON.stringify(RENDA_INICIAL));poupancaInicial=POUPANCA_PADRAO;
+  const ini=estadoInicial();fixos=ini.fixos;cartaoPessoal=ini.cartaoPessoal;cartaoNubank=ini.cartaoNubank;faturaCPPaga=ini.faturaCPPaga;faturaCNPaga=ini.faturaCNPaga;vencCP=ini.vencCP;vencCN=ini.vencCN;gastos=ini.gastos;curMesIdx=0;renda=JSON.parse(JSON.stringify(RENDA_INICIAL));poupancaInicial=POUPANCA_PADRAO;
 }
 
 const fmt = v => 'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -755,6 +769,45 @@ function renderPainel() {
     data:{labels:['Contas fixas','Cartão Lucas','Nubank fixos','Nubank variáveis'],datasets:[{data:[fix,cp,cnf,vr],backgroundColor:['#1A4A7A','#7A4A0A','#2D6A4F','#9B2335'],borderWidth:0,borderRadius:4}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#6B6860',font:{size:11}}},y:{grid:{color:'#E2DED6'},ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR'),color:'#6B6860',font:{size:11}}}}}
   });
+  renderVencimentos();
+}
+
+function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+// Data-limite pra ter o dinheiro na conta = 1 dia antes do vencimento (com virada de mês/ano correta)
+function diaSepararAte(mesKeyStr, dia) {
+  const [ano,mes]=mesKeyStr.split('-').map(Number);
+  const d=new Date(ano, mes-1, dia);
+  d.setDate(d.getDate()-1);
+  return d;
+}
+function renderVencimentos() {
+  const mi=curMesIdx;
+  const mesKeyStr=MESES[mi].key;
+  const linhas=[];
+  fixos.forEach(f=>{
+    if(f.venc) linhas.push({nome:f.nome, val:f.vals[mi]||0, venc:f.venc});
+  });
+  if(vencCP && totalCP(mi)>0) linhas.push({nome:'Fatura — Cartão pessoal (Lucas)', val:totalCP(mi), venc:vencCP});
+  if(vencCN && totalCN(mi)>0) linhas.push({nome:'Fatura — Cartão Nubank (conjunto)', val:totalCN(mi), venc:vencCN});
+  linhas.sort((a,b)=>a.venc-b.venc);
+  const body=document.getElementById('vencimentosBody');
+  if(!body) return;
+  if(!linhas.length){
+    body.innerHTML=`<tr><td colspan="4" class="empty">Nenhuma conta com vencimento cadastrado ainda. Clique em "Vencimento" nas Contas fixas ou nos Cartões pra definir.</td></tr>`;
+    return;
+  }
+  const hoje=new Date(); hoje.setHours(0,0,0,0);
+  const hojeStr=ymd(hoje);
+  body.innerHTML=linhas.map(l=>{
+    const limite=diaSepararAte(mesKeyStr,l.venc);
+    const limiteStr=ymd(limite);
+    const diffDias=Math.round((new Date(limiteStr)-new Date(hojeStr))/86400000);
+    let estilo='color:var(--hint)',tag='';
+    if(diffDias<0){ estilo='color:var(--red);font-weight:600'; tag=' ⚠️ atrasado'; }
+    else if(diffDias===0){ estilo='color:var(--red);font-weight:600'; tag=' 🔴 separar hoje!'; }
+    else if(diffDias<=2){ estilo='color:var(--amber);font-weight:600'; tag=' 🟡 em breve'; }
+    return `<tr><td>${l.nome}</td><td class="mono" style="text-align:right">${fmt(l.val)}</td><td style="text-align:center">Dia ${l.venc}</td><td style="text-align:center;${estilo}">${limiteStr.split('-').reverse().join('/')}${tag}</td></tr>`;
+  }).join('');
 }
 
 function renderGastos() {
@@ -941,10 +994,10 @@ function editVencimento(id){
   if(!f) return;
   const resp=prompt('Dia do vencimento de '+f.nome+' (1 a 31, deixe vazio para remover):', f.venc||'');
   if(resp===null) return;
-  if(resp.trim()===''){ f.venc=null; salvar(); renderFixos(); return; }
+  if(resp.trim()===''){ f.venc=null; salvar(); renderFixos(); renderVencimentos(); return; }
   const n=parseInt(resp);
   if(isNaN(n)||n<1||n>31){ alert('Digite um dia válido entre 1 e 31.'); return; }
-  f.venc=n; salvar(); renderFixos();
+  f.venc=n; salvar(); renderFixos(); renderVencimentos();
 }
 function editFixo(id,mi){
   const f=fixos.find(x=>x.id===id);
@@ -993,11 +1046,24 @@ function renderCartao() {
   document.getElementById('varFixoLabel').textContent=fmt(totalVar(mi));
   document.getElementById('cnTotalLabel').textContent=fmt(totalCN(mi));
   document.getElementById('faturaCNCheckWrap').innerHTML=`<input type="checkbox" ${cnPago?'checked':''} onchange="toggleFaturaPaga('cn')" style="width:16px;height:16px;cursor:pointer">`;
+  document.getElementById('vencCPLabel').textContent = vencCP ? ('Dia '+vencCP) : '—';
+  document.getElementById('vencCNLabel').textContent = vencCN ? ('Dia '+vencCN) : '—';
 }
 function toggleFaturaPaga(tipo){
   const arr = tipo==='cp' ? faturaCPPaga : faturaCNPaga;
   arr[curMesIdx]=!arr[curMesIdx];
   salvar();renderCartao();
+}
+function editVencCartao(tipo){
+  const atual = tipo==='cp' ? vencCP : vencCN;
+  const label = tipo==='cp' ? 'Cartão pessoal — Lucas' : 'Cartão conjunto — Nubank';
+  const resp = prompt('Dia do vencimento da fatura — '+label+' (1 a 31, deixe vazio para remover):', atual||'');
+  if(resp===null) return;
+  if(resp.trim()===''){ if(tipo==='cp') vencCP=null; else vencCN=null; salvar(); renderCartao(); renderVencimentos(); return; }
+  const n=parseInt(resp);
+  if(isNaN(n)||n<1||n>31){ alert('Digite um dia válido entre 1 e 31.'); return; }
+  if(tipo==='cp') vencCP=n; else vencCN=n;
+  salvar(); renderCartao(); renderVencimentos();
 }
 
 function calcMensal(prefix){
