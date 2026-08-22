@@ -163,7 +163,7 @@
   </div>
   <div class="card">
     <div class="card-title">Vencimentos — separe o dinheiro com antecedência</div>
-    <table><thead><tr><th>Conta</th><th style="text-align:right">Valor</th><th style="text-align:center">Vencimento</th><th style="text-align:center">Separar até</th></tr></thead>
+    <table><thead><tr><th>Vencimento</th><th style="text-align:right">Valor total</th><th style="text-align:center">Separar até</th></tr></thead>
     <tbody id="vencimentosBody"></tbody></table>
   </div>
   <div class="chart-wrap"><canvas id="chartPainel"></canvas></div>
@@ -257,11 +257,11 @@
 
   <div class="card">
     <div class="card-title">Renda variável — <span id="rendaVarMesLabel" style="color:var(--accent)"></span></div>
-    <p style="font-size:12px;color:var(--hint);margin-bottom:1rem">Pra bicos, vendas, bônus... entra só no mês da data lançada, não se repete nos meses seguintes.</p>
+    <p style="font-size:12px;color:var(--hint);margin-bottom:1rem">Pra bicos, vendas, bônus... entra só no mês selecionado agora (não se repete nos seguintes). A data é opcional, só pra anotação.</p>
     <div class="add-form fr4">
       <div><label class="lbl">Descrição</label><input type="text" id="rvDesc" placeholder="Ex: Bico, venda, bônus..."></div>
       <div><label class="lbl">Valor (R$)</label><input type="number" id="rvVal" step="0.01" placeholder="0,00"></div>
-      <div><label class="lbl">Data</label><input type="date" id="rvData"></div>
+      <div><label class="lbl">Data (informativo)</label><input type="date" id="rvData"></div>
       <button class="btn" onclick="addRendaVar()">+ Adicionar</button>
     </div>
     <div id="rendaVarLista"></div>
@@ -828,24 +828,28 @@ function renderVencimentos() {
   });
   if(vencCP && totalCP(mi)>0) linhas.push({nome:'Fatura — Cartão pessoal (Lucas)', val:totalCP(mi), venc:vencCP});
   if(vencCN && totalCN(mi)>0) linhas.push({nome:'Fatura — Cartão Nubank (conjunto)', val:totalCN(mi), venc:vencCN});
-  linhas.sort((a,b)=>a.venc-b.venc);
+  // Agrupa por dia de vencimento — o que importa aqui é quanto precisa ter na conta em cada dia
+  const porDia={};
+  linhas.forEach(l=>{ porDia[l.venc]=(porDia[l.venc]||0)+l.val; });
+  const dias=Object.keys(porDia).map(Number).sort((a,b)=>a-b);
   const body=document.getElementById('vencimentosBody');
   if(!body) return;
-  if(!linhas.length){
-    body.innerHTML=`<tr><td colspan="4" class="empty">Nenhuma conta com vencimento cadastrado ainda. Clique em "Vencimento" nas Contas fixas ou nos Cartões pra definir.</td></tr>`;
+  if(!dias.length){
+    body.innerHTML=`<tr><td colspan="3" class="empty">Nenhuma conta com vencimento cadastrado ainda. Clique em "Vencimento" nas Contas fixas ou nos Cartões pra definir.</td></tr>`;
     return;
   }
   const hoje=new Date(); hoje.setHours(0,0,0,0);
   const hojeStr=ymd(hoje);
-  body.innerHTML=linhas.map(l=>{
-    const limite=diaSepararAte(mesKeyStr,l.venc);
+  body.innerHTML=dias.map(dia=>{
+    const total=porDia[dia];
+    const limite=diaSepararAte(mesKeyStr,dia);
     const limiteStr=ymd(limite);
     const diffDias=Math.round((new Date(limiteStr)-new Date(hojeStr))/86400000);
     let estilo='color:var(--hint)',tag='';
     if(diffDias<0){ estilo='color:var(--red);font-weight:600'; tag=' ⚠️ atrasado'; }
     else if(diffDias===0){ estilo='color:var(--red);font-weight:600'; tag=' 🔴 separar hoje!'; }
     else if(diffDias<=2){ estilo='color:var(--amber);font-weight:600'; tag=' 🟡 em breve'; }
-    return `<tr><td>${l.nome}</td><td class="mono" style="text-align:right">${fmt(l.val)}</td><td style="text-align:center">Dia ${l.venc}</td><td style="text-align:center;${estilo}">${limiteStr.split('-').reverse().join('/')}${tag}</td></tr>`;
+    return `<tr><td>Dia ${dia}</td><td class="mono" style="text-align:right">${fmt(total)}</td><td style="text-align:center;${estilo}">${limiteStr.split('-').reverse().join('/')}${tag}</td></tr>`;
   }).join('');
 }
 
@@ -1022,7 +1026,7 @@ function renderRendaVar() {
   const mi=curMesIdx;
   const mk=MESES[mi].key;
   document.getElementById('rendaVarMesLabel').textContent=MESES[mi].label;
-  const lista=(rendasVar[mk]||[]).slice().sort((a,b)=>b.data.localeCompare(a.data));
+  const lista=(rendasVar[mk]||[]).slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
   const el=document.getElementById('rendaVarLista');
   if(!lista.length){
     el.innerHTML='<div class="empty" style="padding:.75rem 0">Nenhuma renda variável lançada em '+MESES[mi].label+'</div>';
@@ -1030,7 +1034,7 @@ function renderRendaVar() {
     el.innerHTML=lista.map(r=>`
       <div class="gasto-item">
         <div class="gasto-desc">${r.desc}</div>
-        <span class="gasto-data">${r.data.split('-').reverse().slice(0,2).join('/')}</span>
+        ${r.data?`<span class="gasto-data">${r.data.split('-').reverse().slice(0,2).join('/')}</span>`:''}
         <span style="font-family:'DM Mono',monospace;font-weight:500;color:var(--green);white-space:nowrap">${fmt(r.val)}</span>
         <button class="btn btn-danger btn-sm" onclick="removeRendaVar(${r.id})">✕</button>
       </div>`).join('');
@@ -1040,11 +1044,11 @@ function renderRendaVar() {
 function addRendaVar() {
   const desc=document.getElementById('rvDesc').value.trim();
   const val=parseFloat(document.getElementById('rvVal').value);
-  const data=document.getElementById('rvData').value;
-  if(!desc||isNaN(val)||val<=0||!data){alert('Preencha descrição, valor e data.');return;}
-  const mk=data.slice(0,7);
+  const data=document.getElementById('rvData').value; // opcional, só informativo — não define o mês
+  if(!desc||isNaN(val)||val<=0){alert('Preencha descrição e valor.');return;}
+  const mk=MESES[curMesIdx].key; // conta pro mês selecionado no app agora, mesma lógica do Pix
   if(!rendasVar[mk]) rendasVar[mk]=[];
-  rendasVar[mk].push({id:Date.now(),desc,val,data});
+  rendasVar[mk].push({id:Date.now(),desc,val,data:data||null});
   document.getElementById('rvDesc').value='';
   document.getElementById('rvVal').value='';
   salvar(); renderAll();
