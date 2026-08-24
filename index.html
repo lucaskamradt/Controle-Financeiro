@@ -891,7 +891,7 @@ function renderGastos() {
     📋 Fatura de ${MESES[mi].label} — gastos de ${mkFatura.split('-').reverse().join('/')}
   </div>`;
   if(!listaFatura.length){
-    html+='<div class="empty" style="padding:.75rem 0">Nenhum gasto em '+mkFatura+'</div>';
+    html+='<div class="empty" style="padding:.75rem 0">Nenhum gasto avulso em '+mkFatura+'</div>';
   } else {
     html+=listaFatura.map(g=>`
       <div class="gasto-item">
@@ -901,8 +901,15 @@ function renderGastos() {
         <span class="gasto-val">${fmt(g.val)}</span>
         <button class="btn btn-danger btn-sm" onclick="removeGasto(${g.id})">✕</button>
       </div>`).join('');
-    const totFatura=listaFatura.reduce((a,g)=>a+g.val,0);
-    html+=`<div style="text-align:right;font-size:12px;color:var(--red);font-family:'DM Mono',monospace;font-weight:600;padding:6px 0;border-top:1px solid var(--border)">Total fatura: ${fmt(totFatura)}</div>`;
+  }
+  // Total da fatura = gastos variáveis avulsos + parte fixa (parcelados) do cartão conjunto Nubank deste mês.
+  // Com filtro de categoria ativo, os parcelados fixos não têm categoria, então mostramos só o subtotal filtrado.
+  const totFaturaVar=listaFatura.reduce((a,g)=>a+g.val,0);
+  if(filtCat){
+    html+=`<div style="text-align:right;font-size:12px;color:var(--red);font-family:'DM Mono',monospace;font-weight:600;padding:6px 0;border-top:1px solid var(--border)">Total fatura (categoria filtrada): ${fmt(totFaturaVar)}</div>`;
+  } else {
+    const totFaturaCompleta=totFaturaVar+totalCNFixo(mi);
+    html+=`<div style="text-align:right;font-size:12px;color:var(--red);font-family:'DM Mono',monospace;font-weight:600;padding:6px 0;border-top:1px solid var(--border)">Total fatura (avulsos + parcelados fixos): ${fmt(totFaturaCompleta)}</div>`;
   }
 
   html+='<div style="height:1px;background:var(--border);margin:1rem 0"></div>';
