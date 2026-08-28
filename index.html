@@ -276,7 +276,7 @@
 <div id="pane-fixos" style="display:none">
   <div class="card">
     <div class="card-title">Boletos &amp; contas fixas mensais</div>
-    <table><thead><tr><th>Conta</th><th style="text-align:right">Valor</th><th style="text-align:center">Vencimento</th><th style="text-align:center">Pago</th><th>Ação</th></tr></thead>
+    <table><thead><tr><th>Conta</th><th style="text-align:right">Valor</th><th style="text-align:center">Vencimento</th><th>Ação</th></tr></thead>
     <tbody id="fixosBody"></tbody></table>
     <div class="add-form fr4">
       <div><label class="lbl">Nova conta</label><input type="text" id="fNome" placeholder="Ex: Streaming"></div>
@@ -292,7 +292,7 @@
   <div class="card">
     <div class="card-title">Cartão pessoal — Lucas <span class="badge badge-amber">parcelados</span></div>
     <div style="font-size:12px;color:var(--hint);cursor:pointer;margin:-2px 0 8px" onclick="editVencCartao('cp')" title="Clique para editar">Vencimento da fatura: <span id="vencCPLabel">—</span></div>
-    <table><thead><tr><th>Item</th><th style="text-align:right">R$/mês</th><th>Até</th><th style="text-align:center">Parcela</th><th style="text-align:center">Pago</th><th></th></tr></thead>
+    <table><thead><tr><th>Item</th><th style="text-align:right">R$/mês</th><th>Até</th><th style="text-align:center">Parcela</th><th></th></tr></thead>
     <tbody id="cpBody"></tbody></table>
     <div class="add-form fr5">
       <div><label class="lbl">Item</label><input type="text" id="cpNome"></div>
@@ -306,7 +306,7 @@
     <div class="card-title">Cartão conjunto — Nubank <span class="badge badge-green">casal</span></div>
     <div style="font-size:12px;color:var(--hint);cursor:pointer;margin:-2px 0 8px" onclick="editVencCartao('cn')" title="Clique para editar">Vencimento da fatura: <span id="vencCNLabel">—</span></div>
     <div class="sub-title">Parcelados fixos</div>
-    <table><thead><tr><th>Item</th><th style="text-align:right">R$/mês</th><th>Até</th><th style="text-align:center">Parcela</th><th style="text-align:center">Pago</th><th></th></tr></thead>
+    <table><thead><tr><th>Item</th><th style="text-align:right">R$/mês</th><th>Até</th><th style="text-align:center">Parcela</th><th></th></tr></thead>
     <tbody id="cnBody"></tbody></table>
     <div class="add-form fr5">
       <div><label class="lbl">Item</label><input type="text" id="cnNome"></div>
@@ -322,10 +322,7 @@
     </div>
     <div style="margin-top:6px;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:14px">
       <span>Total cartão conjunto</span>
-      <span style="display:flex;align-items:center;gap:8px">
-        <span id="cnTotalLabel" style="font-family:'DM Mono',monospace;color:var(--red)"></span>
-        <span id="faturaCNCheckWrap" title="Marcar fatura como paga"></span>
-      </span>
+      <span id="cnTotalLabel" style="font-family:'DM Mono',monospace;color:var(--red)"></span>
     </div>
   </div>
 </div>
@@ -1116,11 +1113,10 @@ function renderFixos() {
       const pago=!!(f.pago&&f.pago[mi]);
       return `<tr${pago?' class="tr-dim"':''}><td>${f.nome}</td><td class="mono" style="text-align:right">${fmt(f.vals[mi]||0)}</td>
       <td style="text-align:center;cursor:pointer" onclick="editVencimento(${f.id})" title="Clique para editar">${f.venc?('Dia '+f.venc):'<span style="color:var(--hint)">—</span>'}</td>
-      <td style="text-align:center"><input type="checkbox" ${pago?'checked':''} onchange="togglePagoFixo(${f.id})" style="width:16px;height:16px;cursor:pointer"></td>
       <td><button class="btn btn-ghost btn-sm" onclick="editFixo(${f.id},${mi})">Editar</button>
       <button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="removeFixo(${f.id})">✕</button></td></tr>`;
     }).join('')+
-    `<tr class="tr-total"><td>Total</td><td class="mono" style="text-align:right">${fmt(totalFixo(mi))}</td><td></td><td></td><td></td></tr>`;
+    `<tr class="tr-total"><td>Total</td><td class="mono" style="text-align:right">${fmt(totalFixo(mi))}</td><td></td><td></td></tr>`;
 }
 function togglePagoFixo(id){
   const f=fixos.find(x=>x.id===id);
@@ -1174,22 +1170,19 @@ function renderCartao() {
       const rotulo = !a ? ` <span class="badge badge-blue">a partir de ${MESES[c.startMes]?MESES[c.startMes].label:'?'}</span>` : '';
       return `<tr${(!a||cpPago)?' class="tr-dim"':''}><td>${c.nome}${rotulo}</td><td class="mono" style="text-align:right">${a?fmt(c.val):'—'}</td><td style="color:var(--hint)">${ultimaParcela(c)}</td>
       <td class="mono" style="text-align:center;color:var(--hint)">${a?parcelaAtual(c,mi):''}</td>
-      <td></td>
       <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="abrirModal('cp',${c.id})">✏️</button> <button class="btn btn-danger btn-sm" onclick="removeCP(${c.id})">✕</button></td></tr>`;
     }).join('')+
-    `<tr class="tr-total"><td>Total</td><td class="mono" style="text-align:right">${fmt(totalCP(mi))}</td><td></td><td></td><td style="text-align:center"><input type="checkbox" ${cpPago?'checked':''} onchange="toggleFaturaPaga('cp')" style="width:16px;height:16px;cursor:pointer"></td><td></td></tr>`;
+    `<tr class="tr-total"><td>Total</td><td class="mono" style="text-align:right">${fmt(totalCP(mi))}</td><td></td><td></td><td></td></tr>`;
   document.getElementById('cnBody').innerHTML=
     cartaoNubank.filter(c=>mi<c.startMes+c.parc).map(c=>{
       const a=mi>=c.startMes&&mi<c.startMes+c.parc;
       const rotulo = !a ? ` <span class="badge badge-blue">a partir de ${MESES[c.startMes]?MESES[c.startMes].label:'?'}</span>` : '';
       return `<tr${(!a||cnPago)?' class="tr-dim"':''}><td>${c.nome}${rotulo}</td><td class="mono" style="text-align:right">${a?fmt(c.val):'—'}</td><td style="color:var(--hint)">${ultimaParcela(c)}</td>
       <td class="mono" style="text-align:center;color:var(--hint)">${a?parcelaAtual(c,mi):''}</td>
-      <td></td>
       <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="abrirModal('cn',${c.id})">✏️</button> <button class="btn btn-danger btn-sm" onclick="removeCN(${c.id})">✕</button></td></tr>`;
     }).join('');
   document.getElementById('varFixoLabel').textContent=fmt(totalVar(mi));
   document.getElementById('cnTotalLabel').textContent=fmt(totalCN(mi));
-  document.getElementById('faturaCNCheckWrap').innerHTML=`<input type="checkbox" ${cnPago?'checked':''} onchange="toggleFaturaPaga('cn')" style="width:16px;height:16px;cursor:pointer">`;
   document.getElementById('vencCPLabel').textContent = vencCP ? ('Dia '+vencCP) : '—';
   document.getElementById('vencCNLabel').textContent = vencCN ? ('Dia '+vencCN) : '—';
 }
