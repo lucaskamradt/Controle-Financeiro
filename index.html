@@ -52,6 +52,7 @@
   .badge-green { background: var(--green-bg); color: var(--green); }
   .badge-amber { background: var(--amber-bg); color: var(--amber); }
   .badge-red { background: var(--red-bg); color: var(--red); }
+  .badge-pix { background: rgba(200,169,110,.16); color: var(--accent); }
 
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th { font-size: 10px; font-weight: 600; color: var(--hint); text-transform: uppercase; letter-spacing: .05em; padding: 5px 7px; border-bottom: 1px solid var(--border); text-align: left; }
@@ -654,7 +655,8 @@ const totalFixo = mi => fixos.reduce((a,f)=>a+(f.vals[mi]||0),0);
 const totalCP = mi => cartaoPessoal.reduce((a,c)=>a+(mi>=c.startMes&&mi<c.startMes+c.parc?c.val:0),0);
 const totalCNFixo = mi => cartaoNubank.reduce((a,c)=>a+(mi>=c.startMes&&mi<c.startMes+c.parc?c.val:0),0);
 const totalCN = mi => totalCNFixo(mi)+totalVar(mi);
-const totalGasto = mi => totalFixo(mi)+totalCP(mi)+totalCN(mi);
+const totalPix = mi => (pix[MESES[mi].key]||[]).reduce((a,p)=>a+p.val,0);
+const totalGasto = mi => totalFixo(mi)+totalCP(mi)+totalCN(mi)+totalPix(mi);
 const saldoMes = mi => rendaTotal(mi)-totalGasto(mi);
 const ultimaParcela = c => { if(c.parc>=999) return 'Mensal ∞'; const idx=c.startMes+c.parc-1; return idx<MESES.length?MESES[idx].label:'além do período'; };
 const parcelaAtual = (c,mi) => { if(c.parc>=999) return ''; return `${mi-c.startMes+1}/${c.parc}`; };
@@ -781,7 +783,7 @@ function editarPoupanca() {
 }
 
 function renderPainel() {
-  const mi=curMesIdx,renda=rendaTotal(mi),fix=totalFixo(mi),cp=totalCP(mi),cnf=totalCNFixo(mi),vr=totalVar(mi),gasto=totalGasto(mi),sal=saldoMes(mi);
+  const mi=curMesIdx,renda=rendaTotal(mi),fix=totalFixo(mi),cp=totalCP(mi),cnf=totalCNFixo(mi),vr=totalVar(mi),px=totalPix(mi),gasto=totalGasto(mi),sal=saldoMes(mi);
   document.getElementById('metricsTop').innerHTML=`
     <div class="metric"><div class="metric-lbl">Renda total</div><div class="metric-val g">${fmt(renda)}</div><div class="metric-sub">Lucas + Nicole + Extras</div></div>
     <div class="metric"><div class="metric-lbl">Total gasto</div><div class="metric-val r">${fmt(gasto)}</div></div>
@@ -793,13 +795,14 @@ function renderPainel() {
     {cat:'Cartão pessoal — Lucas',val:cp,badge:'badge-amber'},
     {cat:'Nubank — parcelados fixos',val:cnf,badge:'badge-green'},
     {cat:'Nubank — fatura mês anterior',val:vr,badge:'badge-red'},
+    {cat:'Pix à vista',val:px,badge:'badge-pix'},
     {cat:'TOTAL',val:gasto,tot:true},
   ].map(r=>`<tr${r.tot?' class="tr-total"':''}><td>${r.tot?'Total gasto':'<span class="badge '+r.badge+'">'+r.cat+'</span>'}</td><td class="mono" style="text-align:right">${fmt(r.val)}</td><td style="text-align:right;color:var(--hint)">${pct(r.val,renda)}</td></tr>`).join('');
 
   if(chartPainel) chartPainel.destroy();
   chartPainel=new Chart(document.getElementById('chartPainel'),{
     type:'bar',
-    data:{labels:['Contas fixas','Cartão Lucas','Nubank fixos','Nubank variáveis'],datasets:[{data:[fix,cp,cnf,vr],backgroundColor:['#1A4A7A','#7A4A0A','#2D6A4F','#9B2335'],borderWidth:0,borderRadius:4}]},
+    data:{labels:['Contas fixas','Cartão Lucas','Nubank fixos','Nubank variáveis','Pix à vista'],datasets:[{data:[fix,cp,cnf,vr,px],backgroundColor:['#1A4A7A','#7A4A0A','#2D6A4F','#9B2335','#8A5A00'],borderWidth:0,borderRadius:4}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#6B6860',font:{size:11}}},y:{grid:{color:'#E2DED6'},ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR'),color:'#6B6860',font:{size:11}}}}}
   });
   renderVencimentos();
@@ -1267,6 +1270,7 @@ function renderProjecao() {
     {lbl:'Contas fixas',fn:i=>totalFixo(i),cls:''},
     {lbl:'Cartão Lucas',fn:i=>totalCP(i),cls:'a'},
     {lbl:'Nubank conjunto',fn:i=>totalCN(i),cls:''},
+    {lbl:'Pix à vista',fn:i=>totalPix(i),cls:''},
     {lbl:'Total gasto',fn:i=>totalGasto(i),cls:'',tot:true},
     {lbl:'Saldo mês',fn:i=>saldoMes(i),cls:'sal',tot:true},
     {lbl:'Poupança',fn:i=>pArr[i],cls:'poup',tot:true},
@@ -1331,7 +1335,7 @@ function gerarPDFMensal(){
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF();
   let y=pdfHeader(doc,'Relatorio Mensal - '+mes.label,false);
-  const rt=rendaTotal(mi),fix=totalFixo(mi),cp=totalCP(mi),cnf=totalCNFixo(mi),vr=totalVar(mi),gt=totalGasto(mi),sal=saldoMes(mi);
+  const rt=rendaTotal(mi),fix=totalFixo(mi),cp=totalCP(mi),cnf=totalCNFixo(mi),vr=totalVar(mi),px=totalPix(mi),gt=totalGasto(mi),sal=saldoMes(mi);
   const pArr=calcPoupanca();
   const pAntes=mi===0?poupancaInicial:pArr[mi-1];
 
@@ -1363,6 +1367,18 @@ function gerarPDFMensal(){
       if(y>270){doc.addPage();y=pdfHeader(doc,'Relatorio Mensal - '+mes.label+' (cont.)',false);}
       y=pdfLinha(doc,g.desc+' ('+CAT_NOMES[g.cat]+') - '+g.data.split('-').reverse().slice(0,2).join('/'),fmt(g.val),y);
     });
+  }
+
+  const mkPix=MESES[mi].key;
+  const pixMes=pix[mkPix]||[];
+  if(pixMes.length){
+    if(y>230){doc.addPage();y=pdfHeader(doc,'Relatorio Mensal - '+mes.label+' (cont.)',false);}
+    y=pdfSecao(doc,'Pix a vista',y);
+    pixMes.forEach(p=>{
+      if(y>270){doc.addPage();y=pdfHeader(doc,'Relatorio Mensal - '+mes.label+' (cont.)',false);}
+      y=pdfLinha(doc,p.desc+(p.data?' - '+p.data.split('-').reverse().slice(0,2).join('/'):''),fmt(p.val),y);
+    });
+    y=pdfTotal(doc,'Total Pix',fmt(px),y);
   }
 
   if(y>230){doc.addPage();y=pdfHeader(doc,'Relatorio Mensal - '+mes.label+' (cont.)',false);}
@@ -1399,6 +1415,7 @@ function gerarPDFAnual(){
     {label:'Contas fixas',fn:i=>totalFixo(i)},
     {label:'Cartao Lucas',fn:i=>totalCP(i)},
     {label:'Nubank conjunto',fn:i=>totalCN(i)},
+    {label:'Pix a vista',fn:i=>totalPix(i)},
     {label:'Total gasto',fn:i=>totalGasto(i),bold:true},
     {label:'Saldo mes',fn:i=>saldoMes(i),bold:true,cor:true},
     {label:'Poupanca',fn:i=>calcPoupanca()[i],bold:true,azul:true},
