@@ -809,10 +809,15 @@ function renderPainel() {
 }
 
 function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+// Vencimento "último dia do mês" é guardado com o valor sentinela 32 (sempre ordena depois dos dias 1-31)
+const VENC_ULTIMO_DIA=32;
+function ultimoDiaMes(ano,mes){ return new Date(ano,mes,0).getDate(); } // mes 1-based
+function labelVenc(dia){ return dia===VENC_ULTIMO_DIA ? 'Último dia' : ('Dia '+dia); }
 // Data-limite pra ter o dinheiro na conta = 1 dia antes do vencimento (com virada de mês/ano correta)
 function diaSepararAte(mesKeyStr, dia) {
   const [ano,mes]=mesKeyStr.split('-').map(Number);
-  const d=new Date(ano, mes-1, dia);
+  const diaReal = dia===VENC_ULTIMO_DIA ? ultimoDiaMes(ano,mes) : dia;
+  const d=new Date(ano, mes-1, diaReal);
   d.setDate(d.getDate()-1);
   return d;
 }
@@ -845,7 +850,7 @@ function renderVencimentos() {
       else if(diffDias<=2){ estilo='color:var(--amber);font-weight:600'; tag=' 🟡 em breve'; }
     }
     const onchange = l.tipo==='fixo' ? `togglePagoFixo(${l.id})` : `toggleFaturaPaga('${l.tipo}')`;
-    return `<tr${l.pago?' class="tr-dim"':''}><td>${l.nome}</td><td class="mono" style="text-align:right">${fmt(l.val)}</td><td style="text-align:center">Dia ${l.venc}</td><td style="text-align:center;${estilo}">${limiteStr.split('-').reverse().join('/')}${tag}</td>
+    return `<tr${l.pago?' class="tr-dim"':''}><td>${l.nome}</td><td class="mono" style="text-align:right">${fmt(l.val)}</td><td style="text-align:center">${labelVenc(l.venc)}</td><td style="text-align:center;${estilo}">${limiteStr.split('-').reverse().join('/')}${tag}</td>
     <td style="text-align:center"><input type="checkbox" ${l.pago?'checked':''} onchange="${onchange}" style="width:16px;height:16px;cursor:pointer" title="Marcar como pago — desconta da poupança atual"></td></tr>`;
   }).join('');
 }
@@ -1115,7 +1120,7 @@ function renderFixos() {
     fixos.map(f=>{
       const pago=!!(f.pago&&f.pago[mi]);
       return `<tr${pago?' class="tr-dim"':''}><td>${f.nome}</td><td class="mono" style="text-align:right">${fmt(f.vals[mi]||0)}</td>
-      <td style="text-align:center;cursor:pointer" onclick="editVencimento(${f.id})" title="Clique para editar">${f.venc?('Dia '+f.venc):'<span style="color:var(--hint)">—</span>'}</td>
+      <td style="text-align:center;cursor:pointer" onclick="editVencimento(${f.id})" title="Clique para editar">${f.venc?labelVenc(f.venc):'<span style="color:var(--hint)">—</span>'}</td>
       <td><button class="btn btn-ghost btn-sm" onclick="editFixo(${f.id},${mi})">Editar</button>
       <button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="removeFixo(${f.id})">✕</button></td></tr>`;
     }).join('')+
@@ -1132,14 +1137,23 @@ function togglePagoFixo(id){
   poupancaInicial=Math.round((poupancaInicial+(estava?valor:-valor))*100)/100;
   salvar();renderFixos();renderVencimentos();renderBanner();
 }
+// Aceita um dia (1-31) ou a palavra "ultimo"/"último" pro último dia do mês. Retorna null se inválido.
+function parseVenc(resp){
+  const t=resp.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  if(t==='ultimo'||t==='ultimo dia'||t==='fim do mes'||t==='final do mes') return VENC_ULTIMO_DIA;
+  const n=parseInt(resp);
+  if(isNaN(n)||n<1||n>31) return null;
+  return n;
+}
 function editVencimento(id){
   const f=fixos.find(x=>x.id===id);
   if(!f) return;
-  const resp=prompt('Dia do vencimento de '+f.nome+' (1 a 31, deixe vazio para remover):', f.venc||'');
+  const atualStr = f.venc===VENC_ULTIMO_DIA ? 'ultimo' : (f.venc||'');
+  const resp=prompt('Dia do vencimento de '+f.nome+' (1 a 31, ou "ultimo" pro último dia do mês, deixe vazio para remover):', atualStr);
   if(resp===null) return;
   if(resp.trim()===''){ f.venc=null; salvar(); renderFixos(); renderVencimentos(); return; }
-  const n=parseInt(resp);
-  if(isNaN(n)||n<1||n>31){ alert('Digite um dia válido entre 1 e 31.'); return; }
+  const n=parseVenc(resp);
+  if(n===null){ alert('Digite um dia válido entre 1 e 31, ou "ultimo".'); return; }
   f.venc=n; salvar(); renderFixos(); renderVencimentos();
 }
 function editFixo(id,mi){
@@ -1186,8 +1200,8 @@ function renderCartao() {
     }).join('');
   document.getElementById('varFixoLabel').textContent=fmt(totalVar(mi));
   document.getElementById('cnTotalLabel').textContent=fmt(totalCN(mi));
-  document.getElementById('vencCPLabel').textContent = vencCP ? ('Dia '+vencCP) : '—';
-  document.getElementById('vencCNLabel').textContent = vencCN ? ('Dia '+vencCN) : '—';
+  document.getElementById('vencCPLabel').textContent = vencCP ? labelVenc(vencCP) : '—';
+  document.getElementById('vencCNLabel').textContent = vencCN ? labelVenc(vencCN) : '—';
 }
 function toggleFaturaPaga(tipo){
   const arr = tipo==='cp' ? faturaCPPaga : faturaCNPaga;
@@ -1201,11 +1215,12 @@ function toggleFaturaPaga(tipo){
 function editVencCartao(tipo){
   const atual = tipo==='cp' ? vencCP : vencCN;
   const label = tipo==='cp' ? 'Cartão pessoal — Lucas' : 'Cartão conjunto — Nubank';
-  const resp = prompt('Dia do vencimento da fatura — '+label+' (1 a 31, deixe vazio para remover):', atual||'');
+  const atualStr = atual===VENC_ULTIMO_DIA ? 'ultimo' : (atual||'');
+  const resp = prompt('Dia do vencimento da fatura — '+label+' (1 a 31, ou "ultimo" pro último dia do mês, deixe vazio para remover):', atualStr);
   if(resp===null) return;
   if(resp.trim()===''){ if(tipo==='cp') vencCP=null; else vencCN=null; salvar(); renderCartao(); renderVencimentos(); return; }
-  const n=parseInt(resp);
-  if(isNaN(n)||n<1||n>31){ alert('Digite um dia válido entre 1 e 31.'); return; }
+  const n=parseVenc(resp);
+  if(n===null){ alert('Digite um dia válido entre 1 e 31, ou "ultimo".'); return; }
   if(tipo==='cp') vencCP=n; else vencCN=n;
   salvar(); renderCartao(); renderVencimentos();
 }
