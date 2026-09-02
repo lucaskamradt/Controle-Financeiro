@@ -1139,7 +1139,9 @@ function renderFixos() {
   document.getElementById('fixosBody').innerHTML=
     fixos.map(f=>{
       const pago=!!(f.pago&&f.pago[mi]);
-      return `<tr${pago?' class="tr-dim"':''}><td>${f.nome}</td><td class="mono" style="text-align:right">${fmt(f.vals[mi]||0)}</td>
+      const ainda = f.startMes!=null && mi<f.startMes; // ainda não existia neste mês
+      const rotulo = ainda ? ` <span class="badge badge-blue">a partir de ${MESES[f.startMes]?MESES[f.startMes].label:'?'}</span>` : '';
+      return `<tr${(pago||ainda)?' class="tr-dim"':''}><td>${f.nome}${rotulo}</td><td class="mono" style="text-align:right">${ainda?'—':fmt(f.vals[mi]||0)}</td>
       <td style="text-align:center;cursor:pointer" onclick="editVencimento(${f.id})" title="Clique para editar">${f.venc?labelVenc(f.venc):'<span style="color:var(--hint)">—</span>'}</td>
       <td><button class="btn btn-ghost btn-sm" onclick="editFixo(${f.id},${mi})">Editar</button>
       <button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="removeFixo(${f.id})">✕</button></td></tr>`;
@@ -1192,7 +1194,9 @@ function addFixo(){
   const venc=vencRaw?parseInt(vencRaw):null;
   if(!nome||isNaN(val))return;
   if(venc!==null&&(isNaN(venc)||venc<1||venc>31)){ alert('Dia de vencimento inválido (use 1 a 31).'); return; }
-  fixos.push({id:Date.now(),nome,vals:MESES.map(()=>val),pago:MESES.map(()=>false),venc});
+  const mi=curMesIdx;
+  // Só entra a partir do mês selecionado agora — meses anteriores ficam sem valor (a conta ainda não existia)
+  fixos.push({id:Date.now(),nome,vals:MESES.map((_,i)=>i>=mi?val:0),pago:MESES.map(()=>false),venc,startMes:mi});
   document.getElementById('fNome').value='';document.getElementById('fVal').value='';document.getElementById('fVenc').value='';
   salvar();renderAll();
 }
