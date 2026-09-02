@@ -306,6 +306,7 @@
   <div class="card">
     <div class="card-title">Cartão conjunto — Nubank <span class="badge badge-green">casal</span></div>
     <div style="font-size:12px;color:var(--hint);cursor:pointer;margin:-2px 0 8px" onclick="editVencCartao('cn')" title="Clique para editar">Vencimento da fatura: <span id="vencCNLabel">—</span></div>
+    <div style="font-size:12px;color:var(--hint);cursor:pointer;margin:-2px 0 8px" onclick="editFechamentoCN()" title="Clique para editar">Fechamento da fatura: <span id="fechCNLabel">—</span> <span style="opacity:.7">(gastos até esse dia entram na fatura atual)</span></div>
     <div class="sub-title">Parcelados fixos</div>
     <table><thead><tr><th>Item</th><th style="text-align:right">R$/mês</th><th>Até</th><th style="text-align:center">Parcela</th><th></th></tr></thead>
     <tbody id="cnBody"></tbody></table>
@@ -488,12 +489,13 @@ function conectarFirestore() {
     faturaCNPaga = Array.isArray(d.faturaCNPaga) ? d.faturaCNPaga : (faturaCNPaga || MESES.map(()=>false));
     vencCP = typeof d.vencCP === 'number' ? d.vencCP : (vencCP || null);
     vencCN = typeof d.vencCN === 'number' ? d.vencCN : (vencCN || null);
+    fechamentoCN = typeof d.fechamentoCN === 'number' ? d.fechamentoCN : (fechamentoCN || 3);
     gastos = d.gastos || gastos;
     rendasVar = (d.rendasVar && typeof d.rendasVar === 'object') ? d.rendasVar : (rendasVar || {});
     pix = (d.pix && typeof d.pix === 'object') ? d.pix : (pix || {});
     renda = Array.isArray(d.renda) ? d.renda : renda;
     poupancaInicial = typeof d.poupancaInicial === 'number' ? d.poupancaInicial : poupancaInicial;
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,vencCP,vencCN,gastos,rendasVar,pix,curMesIdx,renda,poupancaInicial})); } catch(e){}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,vencCP,vencCN,fechamentoCN,gastos,rendasVar,pix,curMesIdx,renda,poupancaInicial})); } catch(e){}
     aplicandoRemoto = false;
     nuvemStatus = 'online'; atualizarIndicadorNuvem();
     renderAll();
@@ -530,7 +532,7 @@ function fazerLogout() {
 
 function enviarParaNuvem() {
   if (aplicandoRemoto || !docRef) return;
-  docRef.set({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,vencCP,vencCN,gastos,rendasVar,pix,curMesIdx,renda,poupancaInicial})
+  docRef.set({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,vencCP,vencCN,fechamentoCN,gastos,rendasVar,pix,curMesIdx,renda,poupancaInicial})
     .catch(erro => { console.error('Erro ao salvar na nuvem:', erro); nuvemStatus = 'erro'; atualizarIndicadorNuvem(); });
 }
 
@@ -553,6 +555,7 @@ const CAT_NOMES = {
 let fixos, cartaoPessoal, cartaoNubank, gastos, curMesIdx;
 let faturaCPPaga, faturaCNPaga; // "fatura paga" do mês — um check por cartão (não por item)
 let vencCP, vencCN; // dia do vencimento da fatura de cada cartão (1-31, ou null)
+let fechamentoCN; // dia de fechamento da fatura Nubank (1-31) — gastos até esse dia do mês ainda entram na fatura atual
 let rendasVar; // renda variável: {mesKey: [{id,desc,val,data}]}
 let pix; // pix à vista: {mesKey: [{id,desc,val,data}]} — mesKey é o mês SELECIONADO no app na hora do lançamento, não a data
 let chartPainel=null, chartCat=null, chartProj=null;
@@ -581,6 +584,7 @@ function estadoInicial() {
     faturaCNPaga: MESES.map(()=>false),
     vencCP: null,
     vencCN: null,
+    fechamentoCN: 3,
     gastos:{},
     rendasVar:{},
     pix:{},
@@ -605,7 +609,7 @@ function migrarParaV4(d) {
 }
 
 function salvar() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,vencCP,vencCN,gastos,rendasVar,pix,curMesIdx,renda,poupancaInicial})); } catch(e){}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({__v:VERSAO_DADOS,fixos,cartaoPessoal,cartaoNubank,faturaCPPaga,faturaCNPaga,vencCP,vencCN,fechamentoCN,gastos,rendasVar,pix,curMesIdx,renda,poupancaInicial})); } catch(e){}
   enviarParaNuvem();
 }
 function carregar() {
@@ -622,6 +626,7 @@ function carregar() {
       faturaCNPaga=Array.isArray(d.faturaCNPaga)?d.faturaCNPaga:MESES.map(()=>false);
       vencCP=typeof d.vencCP==='number'?d.vencCP:null;
       vencCN=typeof d.vencCN==='number'?d.vencCN:null;
+      fechamentoCN=typeof d.fechamentoCN==='number'?d.fechamentoCN:3;
       let versao = d.__v||0;
       if(versao<3){fixos.forEach(f=>f.vals.shift());renda.forEach(r=>r.vals.shift());if(gastos&&gastos['2026-07'])delete gastos['2026-07'];curMesIdx=Math.max(0,curMesIdx-1);versao=3;}
       if(versao<4){d.fixos=fixos;d.renda=renda;d.cartaoPessoal=cartaoPessoal;d.cartaoNubank=cartaoNubank;d.gastos=gastos;d.curMesIdx=curMesIdx;d.__v=versao;migrarParaV4(d);curMesIdx=d.curMesIdx;}
@@ -629,7 +634,7 @@ function carregar() {
       return;
     }
   } catch(e){}
-  const ini=estadoInicial();fixos=ini.fixos;cartaoPessoal=ini.cartaoPessoal;cartaoNubank=ini.cartaoNubank;faturaCPPaga=ini.faturaCPPaga;faturaCNPaga=ini.faturaCNPaga;vencCP=ini.vencCP;vencCN=ini.vencCN;gastos=ini.gastos;rendasVar=ini.rendasVar;pix=ini.pix;curMesIdx=0;renda=JSON.parse(JSON.stringify(RENDA_INICIAL));poupancaInicial=POUPANCA_PADRAO;
+  const ini=estadoInicial();fixos=ini.fixos;cartaoPessoal=ini.cartaoPessoal;cartaoNubank=ini.cartaoNubank;faturaCPPaga=ini.faturaCPPaga;faturaCNPaga=ini.faturaCNPaga;vencCP=ini.vencCP;vencCN=ini.vencCN;fechamentoCN=ini.fechamentoCN;gastos=ini.gastos;rendasVar=ini.rendasVar;pix=ini.pix;curMesIdx=0;renda=JSON.parse(JSON.stringify(RENDA_INICIAL));poupancaInicial=POUPANCA_PADRAO;
 }
 
 const fmt = v => 'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -644,10 +649,20 @@ const mesAnteriorKey = mi => {
   const antAno = mes===1?ano-1:ano;
   return antAno+'-'+(antMes<10?'0':'')+antMes; // ex: "2026-06"
 };
-const totalVar = mi => {
-  const mk = mesAnteriorKey(mi);
-  return (gastos[mk]||[]).reduce((a,g)=>a+g.val,0);
+const diaDoGasto = g => parseInt((g.data||'').slice(8,10),10);
+// Gastos que caem na fatura mostrada no mês `mi` (fecha na virada do mês anterior pro atual,
+// no dia de fechamento configurado — ex: fechamento dia 3 = gastos do mês anterior a partir do
+// dia 4 + gastos deste mês até o dia 3). Sem fechamento definido, mantém o comportamento antigo
+// (mês anterior inteiro).
+const gastosDaFatura = mi => {
+  const mkAtual = mesKey(mi);
+  const mkAnterior = mesAnteriorKey(mi);
+  if(!fechamentoCN) return gastos[mkAnterior]||[];
+  const doAnterior = (gastos[mkAnterior]||[]).filter(g=>diaDoGasto(g)>fechamentoCN);
+  const doAtual = (gastos[mkAtual]||[]).filter(g=>diaDoGasto(g)<=fechamentoCN);
+  return doAnterior.concat(doAtual);
 };
+const totalVar = mi => gastosDaFatura(mi).reduce((a,g)=>a+g.val,0);
 
 const totalRendaVar = mi => (rendasVar[MESES[mi].key]||[]).reduce((a,r)=>a+r.val,0);
 const rendaTotal = mi => renda.reduce((a,r)=>a+(r.vals[mi]||0),0) + totalRendaVar(mi);
@@ -858,27 +873,32 @@ function renderVencimentos() {
 function renderGastos() {
   const mi=curMesIdx;
   const mkAtual=mesKey(mi);           // mês que estou vendo (ex: 2026-07)
-  const mkFatura=mesAnteriorKey(mi);  // mês anterior = fatura deste mês (ex: 2026-06)
+  const mkFatura=mesAnteriorKey(mi);  // mês anterior
+  const fech=fechamentoCN||null;
   const filtCat=document.getElementById('filtCat').value;
 
   // Título
   document.getElementById('gastosTitle').textContent=MESES[mi].label;
 
-  // Lista de gastos para lançar = mês atual
-  const listaAtual=(gastos[mkAtual]||[]).filter(g=>!filtCat||g.cat===filtCat).sort((a,b)=>b.data.localeCompare(a.data));
-  // Lista fatura = mês anterior
-  const listaFatura=(gastos[mkFatura]||[]).filter(g=>!filtCat||g.cat===filtCat).sort((a,b)=>b.data.localeCompare(a.data));
+  // Lista de gastos que ainda vão fechar = mês atual, depois do dia de fechamento (viram fatura no mês seguinte)
+  const listaAtual=(fech?(gastos[mkAtual]||[]).filter(g=>diaDoGasto(g)>fech):(gastos[mkAtual]||[]))
+    .filter(g=>!filtCat||g.cat===filtCat).sort((a,b)=>b.data.localeCompare(a.data));
+  // Lista da fatura mostrada neste mês = gastos do mês anterior após o fechamento + gastos deste mês até o fechamento
+  const listaFatura=gastosDaFatura(mi).filter(g=>!filtCat||g.cat===filtCat).sort((a,b)=>b.data.localeCompare(a.data));
 
   const el=document.getElementById('gastosLista');
 
   let html='';
 
-  // Bloco fatura (mês anterior)
+  // Bloco fatura
+  const faturaDesc = fech
+    ? `gastos de ${(fech+1).toString().padStart(2,'0')}/${mkFatura.split('-').reverse().join('/')} até ${fech.toString().padStart(2,'0')}/${mkAtual.split('-').reverse().join('/')}`
+    : `gastos de ${mkFatura.split('-').reverse().join('/')}`;
   html+=`<div style="font-size:11px;font-weight:600;color:var(--red);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">
-    📋 Fatura de ${MESES[mi].label} — gastos de ${mkFatura.split('-').reverse().join('/')}
+    📋 Fatura de ${MESES[mi].label} — ${faturaDesc}
   </div>`;
   if(!listaFatura.length){
-    html+='<div class="empty" style="padding:.75rem 0">Nenhum gasto avulso em '+mkFatura+'</div>';
+    html+='<div class="empty" style="padding:.75rem 0">Nenhum gasto avulso nessa fatura</div>';
   } else {
     html+=listaFatura.map(g=>`
       <div class="gasto-item">
@@ -901,9 +921,9 @@ function renderGastos() {
 
   html+='<div style="height:1px;background:var(--border);margin:1rem 0"></div>';
 
-  // Bloco lançamentos do mês atual
+  // Bloco lançamentos do mês atual (só os que já passaram do fechamento — os de até o dia do fechamento já entraram na fatura acima)
   html+=`<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">
-    🛒 Lançamentos de ${MESES[mi].label} — viram fatura em ${(() => { const [a,m]=mkAtual.split('-').map(Number); const pm=m===12?1:m+1; const pa=m===12?a+1:a; return (pm<10?'0':'')+pm+'/'+pa; })()}
+    🛒 Lançamentos de ${MESES[mi].label}${fech?` (após o fechamento, dia ${fech})`:''} — viram fatura em ${(() => { const [a,m]=mkAtual.split('-').map(Number); const pm=m===12?1:m+1; const pa=m===12?a+1:a; return (pm<10?'0':'')+pm+'/'+pa; })()}
   </div>`;
   if(!listaAtual.length){
     html+='<div class="empty" style="padding:.75rem 0">Nenhum lançamento ainda</div>';
@@ -926,7 +946,7 @@ function renderGastos() {
 
   // Gráfico por categoria (fatura do mês)
   const byCat={};
-  (gastos[mkFatura]||[]).forEach(g=>{byCat[g.cat]=(byCat[g.cat]||0)+g.val;});
+  gastosDaFatura(mi).forEach(g=>{byCat[g.cat]=(byCat[g.cat]||0)+g.val;});
   const cats=Object.keys(byCat);
   const vals=cats.map(c=>byCat[c]);
   const cores=cats.map(c=>CAT_CORES[c]||'#888');
@@ -1202,6 +1222,16 @@ function renderCartao() {
   document.getElementById('cnTotalLabel').textContent=fmt(totalCN(mi));
   document.getElementById('vencCPLabel').textContent = vencCP ? labelVenc(vencCP) : '—';
   document.getElementById('vencCNLabel').textContent = vencCN ? labelVenc(vencCN) : '—';
+  document.getElementById('fechCNLabel').textContent = fechamentoCN ? ('Dia '+fechamentoCN) : '—';
+}
+function editFechamentoCN(){
+  const resp = prompt('Dia de fechamento da fatura — Cartão conjunto Nubank (1 a 31). Gastos lançados até esse dia do mês ainda entram na fatura atual, depois disso viram fatura do mês seguinte:', fechamentoCN||'');
+  if(resp===null) return;
+  if(resp.trim()===''){ fechamentoCN=null; salvar(); renderAll(); return; }
+  const n=parseInt(resp);
+  if(isNaN(n)||n<1||n>31){ alert('Digite um dia válido entre 1 e 31.'); return; }
+  fechamentoCN=n;
+  salvar(); renderAll();
 }
 function toggleFaturaPaga(tipo){
   const arr = tipo==='cp' ? faturaCPPaga : faturaCNPaga;
@@ -1370,11 +1400,10 @@ function gerarPDFMensal(){
   y=pdfSecao(doc,'Cartao Nubank conjunto',y);
   const cnA=cartaoNubank.filter(c=>mi>=c.startMes&&mi<c.startMes+c.parc);
   if(cnA.length) cnA.forEach(c=>{y=pdfLinha(doc,c.nome,fmt(c.val),y);});
-  y=pdfLinha(doc,'Fatura variaveis (mes anterior)',fmt(vr),y);
+  y=pdfLinha(doc,'Fatura variaveis',fmt(vr),y);
   y=pdfTotal(doc,'Total Nubank conjunto',fmt(cnf+vr),y);
 
-  const mkFatura=mesAnteriorKey(mi);
-  const gastFatura=gastos[mkFatura]||[];
+  const gastFatura=gastosDaFatura(mi);
   if(gastFatura.length){
     if(y>210){doc.addPage();y=pdfHeader(doc,'Relatorio Mensal - '+mes.label+' (cont.)',false);}
     y=pdfSecao(doc,'Gastos variaveis - fatura de '+mes.label,y);
