@@ -100,6 +100,7 @@
   .cat-pet { background: #FFF3E0; color: #8A5A00; }
   .cat-lazer { background: #FCE4EC; color: #880E4F; }
   .cat-outros { background: #F3F3F3; color: #555; }
+  .cat-estorno { background: #E8F5EE; color: #2D6A4F; }
 
   .total-var-bar { background: var(--bg); border-radius: 8px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; margin-top: .5rem; font-size: 13px; }
 
@@ -176,9 +177,7 @@
     <div class="card-title">Lançar gasto <span class="badge badge-green">Nubank conjunto</span></div>
     <div class="add-form fr5">
       <div><label class="lbl">Descrição</label><input type="text" id="gDesc" placeholder="Ex: Uber, Mercado..."></div>
-      <div><label class="lbl">Valor (R$)</label><input type="number" id="gVal" step="0.01" placeholder="0,00">
-        <label style="display:flex;align-items:center;gap:4px;margin-top:4px;font-size:11px;color:var(--hint);cursor:pointer"><input type="checkbox" id="gEstorno" style="width:13px;height:13px;cursor:pointer">Estorno (diminui a fatura)</label>
-      </div>
+      <div><label class="lbl">Valor (R$)</label><input type="number" id="gVal" step="0.01" placeholder="0,00"></div>
       <div><label class="lbl">Categoria</label>
         <select id="gCat" style="height:33px;width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:7px;font-size:13px;padding:0 8px">
           <option value="mercado">🛒 Mercado</option>
@@ -188,6 +187,7 @@
           <option value="pet">🐾 Pet</option>
           <option value="lazer">🎉 Lazer</option>
           <option value="outros">📦 Outros</option>
+          <option value="estorno">↩️ Estorno</option>
         </select>
       </div>
       <div><label class="lbl">Data</label><input type="date" id="gData"></div>
@@ -224,6 +224,7 @@
         <option value="pet">Pet</option>
         <option value="lazer">Lazer</option>
         <option value="outros">Outros</option>
+        <option value="estorno">Estorno</option>
       </select>
     </div>
 
@@ -547,11 +548,11 @@ let renda;
 
 const CAT_CORES = {
   mercado:'#2D6A4F', restaurante:'#7A4A0A', uber:'#1A4A7A',
-  farmacia:'#6A2D8A', pet:'#8A5A00', lazer:'#880E4F', outros:'#555'
+  farmacia:'#6A2D8A', pet:'#8A5A00', lazer:'#880E4F', outros:'#555', estorno:'#2D6A4F'
 };
 const CAT_NOMES = {
   mercado:'Mercado', restaurante:'Restaurante', uber:'Uber/transp.',
-  farmacia:'Farmácia', pet:'Pet', lazer:'Lazer', outros:'Outros'
+  farmacia:'Farmácia', pet:'Pet', lazer:'Lazer', outros:'Outros', estorno:'Estorno'
 };
 
 let fixos, cartaoPessoal, cartaoNubank, gastos, curMesIdx;
@@ -876,7 +877,7 @@ function gastoItemHTML(g){
   const neg=g.val<0;
   return `
       <div class="gasto-item">
-        <div class="gasto-desc">${g.desc}${neg?' <span class="badge badge-green">estorno</span>':''}</div>
+        <div class="gasto-desc">${g.desc}</div>
         <span class="gasto-cat cat-${g.cat}">${CAT_NOMES[g.cat]||g.cat}</span>
         <span class="gasto-data">${g.data.split('-').reverse().slice(0,2).join('/')}</span>
         <span class="gasto-val"${neg?' style="color:var(--green)"':''}>${neg?'- ':''}${fmt(g.val)}</span>
@@ -1013,7 +1014,7 @@ function addGasto() {
   let val=parseFloat(document.getElementById('gVal').value);
   const cat=document.getElementById('gCat').value;
   const data=document.getElementById('gData').value;
-  const estorno=document.getElementById('gEstorno').checked;
+  const estorno=cat==='estorno';
   if(!desc||isNaN(val)||val<=0||!data){alert('Preencha descrição, valor e data.');return;}
   if(estorno) val=-Math.abs(val); // estorno entra negativo e desconta da fatura
   // Salva pelo mês da DATA do gasto, não pelo mês selecionado no app
@@ -1022,7 +1023,6 @@ function addGasto() {
   gastos[mk].push({id:Date.now(),desc,val,cat,data,estorno});
   document.getElementById('gDesc').value='';
   document.getElementById('gVal').value='';
-  document.getElementById('gEstorno').checked=false;
   salvar(); renderAll();
 }
 
@@ -1415,7 +1415,7 @@ function gerarPDFMensal(){
     y=pdfSecao(doc,'Gastos variaveis - fatura de '+mes.label,y);
     gastFatura.forEach(g=>{
       if(y>270){doc.addPage();y=pdfHeader(doc,'Relatorio Mensal - '+mes.label+' (cont.)',false);}
-      y=pdfLinha(doc,g.desc+(g.val<0?' (estorno)':'')+' ('+CAT_NOMES[g.cat]+') - '+g.data.split('-').reverse().slice(0,2).join('/'),(g.val<0?'- ':'')+fmt(g.val),y);
+      y=pdfLinha(doc,g.desc+' ('+CAT_NOMES[g.cat]+') - '+g.data.split('-').reverse().slice(0,2).join('/'),(g.val<0?'- ':'')+fmt(g.val),y);
     });
   }
 
