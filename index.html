@@ -176,7 +176,9 @@
     <div class="card-title">Lançar gasto <span class="badge badge-green">Nubank conjunto</span></div>
     <div class="add-form fr5">
       <div><label class="lbl">Descrição</label><input type="text" id="gDesc" placeholder="Ex: Uber, Mercado..."></div>
-      <div><label class="lbl">Valor (R$)</label><input type="number" id="gVal" step="0.01" placeholder="0,00"></div>
+      <div><label class="lbl">Valor (R$)</label><input type="number" id="gVal" step="0.01" placeholder="0,00">
+        <label style="display:flex;align-items:center;gap:4px;margin-top:4px;font-size:11px;color:var(--hint);cursor:pointer"><input type="checkbox" id="gEstorno" style="width:13px;height:13px;cursor:pointer">Estorno (diminui a fatura)</label>
+      </div>
       <div><label class="lbl">Categoria</label>
         <select id="gCat" style="height:33px;width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:7px;font-size:13px;padding:0 8px">
           <option value="mercado">🛒 Mercado</option>
@@ -870,6 +872,17 @@ function renderVencimentos() {
   }).join('');
 }
 
+function gastoItemHTML(g){
+  const neg=g.val<0;
+  return `
+      <div class="gasto-item">
+        <div class="gasto-desc">${g.desc}${neg?' <span class="badge badge-green">estorno</span>':''}</div>
+        <span class="gasto-cat cat-${g.cat}">${CAT_NOMES[g.cat]||g.cat}</span>
+        <span class="gasto-data">${g.data.split('-').reverse().slice(0,2).join('/')}</span>
+        <span class="gasto-val"${neg?' style="color:var(--green)"':''}>${neg?'- ':''}${fmt(g.val)}</span>
+        <button class="btn btn-danger btn-sm" onclick="removeGasto(${g.id})">✕</button>
+      </div>`;
+}
 function renderGastos() {
   const mi=curMesIdx;
   const mkAtual=mesKey(mi);           // mês que estou vendo (ex: 2026-07)
@@ -900,14 +913,7 @@ function renderGastos() {
   if(!listaFatura.length){
     html+='<div class="empty" style="padding:.75rem 0">Nenhum gasto avulso nessa fatura</div>';
   } else {
-    html+=listaFatura.map(g=>`
-      <div class="gasto-item">
-        <div class="gasto-desc">${g.desc}</div>
-        <span class="gasto-cat cat-${g.cat}">${CAT_NOMES[g.cat]||g.cat}</span>
-        <span class="gasto-data">${g.data.split('-').reverse().slice(0,2).join('/')}</span>
-        <span class="gasto-val">${fmt(g.val)}</span>
-        <button class="btn btn-danger btn-sm" onclick="removeGasto(${g.id})">✕</button>
-      </div>`).join('');
+    html+=listaFatura.map(gastoItemHTML).join('');
   }
   // Total da fatura = gastos variáveis avulsos + parte fixa (parcelados) do cartão conjunto Nubank deste mês.
   // Com filtro de categoria ativo, os parcelados fixos não têm categoria, então mostramos só o subtotal filtrado.
@@ -928,14 +934,7 @@ function renderGastos() {
   if(!listaAtual.length){
     html+='<div class="empty" style="padding:.75rem 0">Nenhum lançamento ainda</div>';
   } else {
-    html+=listaAtual.map(g=>`
-      <div class="gasto-item">
-        <div class="gasto-desc">${g.desc}</div>
-        <span class="gasto-cat cat-${g.cat}">${CAT_NOMES[g.cat]||g.cat}</span>
-        <span class="gasto-data">${g.data.split('-').reverse().slice(0,2).join('/')}</span>
-        <span class="gasto-val">${fmt(g.val)}</span>
-        <button class="btn btn-danger btn-sm" onclick="removeGasto(${g.id})">✕</button>
-      </div>`).join('');
+    html+=listaAtual.map(gastoItemHTML).join('');
   }
 
   el.innerHTML=html;
@@ -947,7 +946,7 @@ function renderGastos() {
   // Gráfico por categoria (fatura do mês)
   const byCat={};
   gastosDaFatura(mi).forEach(g=>{byCat[g.cat]=(byCat[g.cat]||0)+g.val;});
-  const cats=Object.keys(byCat);
+  const cats=Object.keys(byCat).filter(c=>byCat[c]>0); // estornos não geram fatia negativa no gráfico
   const vals=cats.map(c=>byCat[c]);
   const cores=cats.map(c=>CAT_CORES[c]||'#888');
 
@@ -1011,16 +1010,19 @@ function removePix(id) {
 
 function addGasto() {
   const desc=document.getElementById('gDesc').value.trim();
-  const val=parseFloat(document.getElementById('gVal').value);
+  let val=parseFloat(document.getElementById('gVal').value);
   const cat=document.getElementById('gCat').value;
   const data=document.getElementById('gData').value;
+  const estorno=document.getElementById('gEstorno').checked;
   if(!desc||isNaN(val)||val<=0||!data){alert('Preencha descrição, valor e data.');return;}
+  if(estorno) val=-Math.abs(val); // estorno entra negativo e desconta da fatura
   // Salva pelo mês da DATA do gasto, não pelo mês selecionado no app
   const mk=data.slice(0,7); // ex: "2026-06"
   if(!gastos[mk]) gastos[mk]=[];
-  gastos[mk].push({id:Date.now(),desc,val,cat,data});
+  gastos[mk].push({id:Date.now(),desc,val,cat,data,estorno});
   document.getElementById('gDesc').value='';
   document.getElementById('gVal').value='';
+  document.getElementById('gEstorno').checked=false;
   salvar(); renderAll();
 }
 
@@ -1413,7 +1415,7 @@ function gerarPDFMensal(){
     y=pdfSecao(doc,'Gastos variaveis - fatura de '+mes.label,y);
     gastFatura.forEach(g=>{
       if(y>270){doc.addPage();y=pdfHeader(doc,'Relatorio Mensal - '+mes.label+' (cont.)',false);}
-      y=pdfLinha(doc,g.desc+' ('+CAT_NOMES[g.cat]+') - '+g.data.split('-').reverse().slice(0,2).join('/'),fmt(g.val),y);
+      y=pdfLinha(doc,g.desc+(g.val<0?' (estorno)':'')+' ('+CAT_NOMES[g.cat]+') - '+g.data.split('-').reverse().slice(0,2).join('/'),(g.val<0?'- ':'')+fmt(g.val),y);
     });
   }
 
