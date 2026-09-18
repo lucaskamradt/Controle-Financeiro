@@ -896,9 +896,9 @@ function renderGastos() {
 
   // Lista de gastos que ainda vão fechar = mês atual, depois do dia de fechamento (viram fatura no mês seguinte)
   const listaAtual=(fech?(gastos[mkAtual]||[]).filter(g=>diaDoGasto(g)>fech):(gastos[mkAtual]||[]))
-    .filter(g=>!filtCat||g.cat===filtCat).sort((a,b)=>b.data.localeCompare(a.data));
+    .filter(g=>!filtCat||g.cat===filtCat).sort((a,b)=>b.data.localeCompare(a.data)||a.id-b.id); // mesma data: mantém a ordem em que foram lançados
   // Lista da fatura mostrada neste mês = gastos do mês anterior após o fechamento + gastos deste mês até o fechamento
-  const listaFatura=gastosDaFatura(mi).filter(g=>!filtCat||g.cat===filtCat).sort((a,b)=>b.data.localeCompare(a.data));
+  const listaFatura=gastosDaFatura(mi).filter(g=>!filtCat||g.cat===filtCat).sort((a,b)=>b.data.localeCompare(a.data)||a.id-b.id); // mesma data: mantém a ordem em que foram lançados
 
   const el=document.getElementById('gastosLista');
 
