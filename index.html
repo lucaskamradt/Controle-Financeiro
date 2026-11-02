@@ -115,6 +115,8 @@
   .modal-actions { display:flex; gap:8px; justify-content:flex-end; }
 
   .filtro-row { display: flex; gap: 8px; margin-bottom: .85rem; flex-wrap: wrap; align-items: center; }
+  .sel-light { background: var(--bg); color: var(--text); border: 1px solid var(--border); height: 33px; width: 100%; font-family: 'Plus Jakarta Sans', sans-serif; }
+  td .sel-light { height: 28px; width: auto; padding: 2px 6px; font-size: 12px; }
   .filtro-row select { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
   .filtro-row input[type=text] { max-width: 160px; height: 30px; }
 
@@ -247,14 +249,15 @@
 <div id="pane-renda" style="display:none">
   <div class="card">
     <div class="card-title">💰 Renda — <span id="rendaMesLabel" style="color:var(--accent)"></span></div>
-    <p style="font-size:12px;color:var(--hint);margin-bottom:1rem">Editar propaga para este mês e todos os seguintes. Meses anteriores não são alterados.</p>
+    <p style="font-size:12px;color:var(--hint);margin-bottom:1rem">Editar propaga para este mês e todos os seguintes. Meses anteriores não são alterados. Em "Até" você define a competência final: depois desse mês a renda para de entrar.</p>
     <table>
-      <thead><tr><th>Fonte de renda</th><th style="text-align:right">Valor</th><th style="text-align:center">Recebido</th><th>Ações</th></tr></thead>
+      <thead><tr><th>Fonte de renda</th><th style="text-align:right">Valor</th><th style="text-align:center">Até</th><th style="text-align:center">Recebido</th><th>Ações</th></tr></thead>
       <tbody id="rendaBody"></tbody>
     </table>
-    <div class="add-form fr3">
+    <div class="add-form fr4">
       <div><label class="lbl">Nova fonte de renda</label><input type="text" id="rNome" placeholder="Ex: Freelance, Aluguel..."></div>
       <div><label class="lbl">Valor (R$)</label><input type="number" id="rVal" step="0.01" placeholder="0,00"></div>
+      <div><label class="lbl">Até (competência final)</label><select id="rAte" class="sel-light"></select></div>
       <button class="btn" onclick="addRenda()">+ Adicionar</button>
     </div>
   </div>
@@ -668,7 +671,12 @@ const gastosDaFatura = mi => {
 const totalVar = mi => gastosDaFatura(mi).reduce((a,g)=>a+g.val,0);
 
 const totalRendaVar = mi => (rendasVar[MESES[mi].key]||[]).reduce((a,r)=>a+r.val,0);
-const rendaTotal = mi => renda.reduce((a,r)=>a+(r.vals[mi]||0),0) + totalRendaVar(mi);
+// Competência final da renda: r.ate = chave do último mês (ex '2027-03'); null = sem fim
+const rendaEncerrada = (r,mi) => !!(r.ate && MESES[mi] && MESES[mi].key > r.ate);
+const rendaValMes = (r,mi) => rendaEncerrada(r,mi) ? 0 : (r.vals[mi]||0);
+const labelMesKey = k => { const m=MESES.find(x=>x.key===k); if(m) return m.label; const [a,mm]=String(k).split('-'); return mm+'/'+String(a).slice(2); };
+function opcoesAte(sel){ return '<option value=""'+(!sel?' selected':'')+'>Sem fim</option>'+MESES.map(m=>'<option value="'+m.key+'"'+(sel===m.key?' selected':'')+'>'+m.label+'</option>').join(''); }
+const rendaTotal = mi => renda.reduce((a,r)=>a+rendaValMes(r,mi),0) + totalRendaVar(mi);
 const totalFixo = mi => fixos.reduce((a,f)=>a+(f.vals[mi]||0),0);
 const totalCP = mi => cartaoPessoal.reduce((a,c)=>a+(mi>=c.startMes&&mi<c.startMes+c.parc?c.val:0),0);
 const totalCNFixo = mi => cartaoNubank.reduce((a,c)=>a+(mi>=c.startMes&&mi<c.startMes+c.parc?c.val:0),0);
@@ -1040,17 +1048,21 @@ function renderRenda() {
   document.getElementById('rendaBody').innerHTML=
     renda.map(r=>{
       const recebido=!!(r.pago&&r.pago[mi]);
-      return `<tr${recebido?' class="tr-dim"':''}>
-      <td>${r.nome}</td>
-      <td class="mono" style="text-align:right">${fmt(r.vals[mi]||0)}</td>
-      <td style="text-align:center"><input type="checkbox" ${recebido?'checked':''} onchange="toggleRecebidoRenda(${r.id})" style="width:16px;height:16px;cursor:pointer"></td>
+      const enc=rendaEncerrada(r,mi);
+      const rotulo=enc?` <span class="badge badge-blue">encerrada em ${labelMesKey(r.ate)}</span>`:'';
+      return `<tr${(recebido||enc)?' class="tr-dim"':''}>
+      <td>${r.nome}${rotulo}</td>
+      <td class="mono" style="text-align:right">${enc?'—':fmt(r.vals[mi]||0)}</td>
+      <td style="text-align:center"><select class="sel-light" onchange="setAteRenda(${r.id},this.value)">${opcoesAte(r.ate||'')}</select></td>
+      <td style="text-align:center">${enc?'<span style="color:var(--hint)">—</span>':`<input type="checkbox" ${recebido?'checked':''} onchange="toggleRecebidoRenda(${r.id})" style="width:16px;height:16px;cursor:pointer">`}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick="editRenda(${r.id},${mi})">Editar</button>
         <button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="removeRenda(${r.id})">✕</button>
       </td>
     </tr>`;
     }).join('')+
-    `<tr class="tr-total"><td>Total</td><td class="mono" style="text-align:right">${fmt(rendaTotal(mi))}</td><td></td><td></td></tr>`;
+    `<tr class="tr-total"><td>Total</td><td class="mono" style="text-align:right">${fmt(rendaTotal(mi))}</td><td></td><td></td><td></td></tr>`;
+  const rAte=document.getElementById('rAte'); if(rAte){ const v=rAte.value; rAte.innerHTML=opcoesAte(v); }
   renderRendaVar();
 }
 function renderRendaVar() {
@@ -1108,6 +1120,13 @@ function toggleRecebidoRenda(id){
   salvar();renderRenda();renderBanner();
 }
 
+function setAteRenda(id, valor){
+  const r=renda.find(x=>x.id===id);
+  if(!r) return;
+  r.ate=valor||null;
+  salvar();renderAll();
+}
+
 function editRenda(id, mi) {
   const r=renda.find(x=>x.id===id);
   const novo=parseFloat(prompt('Novo valor para '+r.nome+' a partir de '+MESES[mi].label+' (propaga para os meses seguintes):',r.vals[mi]||0));
@@ -1128,8 +1147,10 @@ function addRenda() {
   const nome=document.getElementById('rNome').value.trim();
   const val=parseFloat(document.getElementById('rVal').value);
   if(!nome||isNaN(val)||val<0)return;
-  renda.push({id:Date.now(),nome,vals:MESES.map(()=>val),pago:MESES.map(()=>false)});
+  const ate=document.getElementById('rAte').value||null;
+  renda.push({id:Date.now(),nome,vals:MESES.map(()=>val),pago:MESES.map(()=>false),ate});
   document.getElementById('rNome').value='';
+  document.getElementById('rAte').value='';
   document.getElementById('rVal').value='';
   salvar();renderAll();
 }
@@ -1391,7 +1412,7 @@ function gerarPDFMensal(){
   const pAntes=mi===0?poupancaInicial:pArr[mi-1];
 
   y=pdfSecao(doc,'Renda',y);
-  renda.forEach(r=>{y=pdfLinha(doc,r.nome,fmt(r.vals[mi]||0),y);});
+  renda.forEach(r=>{ if(rendaEncerrada(r,mi)) return; y=pdfLinha(doc,r.nome,fmt(r.vals[mi]||0),y);});
   y=pdfTotal(doc,'Total renda',fmt(rt),y);
 
   y=pdfSecao(doc,'Contas fixas (boletos)',y);
