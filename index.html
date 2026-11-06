@@ -283,12 +283,14 @@
 <div id="pane-fixos" style="display:none">
   <div class="card">
     <div class="card-title">Boletos &amp; contas fixas mensais</div>
-    <table><thead><tr><th>Conta</th><th style="text-align:right">Valor</th><th style="text-align:center">Vencimento</th><th>Ação</th></tr></thead>
+    <p style="font-size:12px;color:var(--hint);margin-bottom:1rem">Em "Até" você define a competência final: depois desse mês a conta para de entrar no total.</p>
+    <table><thead><tr><th>Conta</th><th style="text-align:right">Valor</th><th style="text-align:center">Vencimento</th><th style="text-align:center">Até</th><th>Ação</th></tr></thead>
     <tbody id="fixosBody"></tbody></table>
-    <div class="add-form fr4">
+    <div class="add-form fr5">
       <div><label class="lbl">Nova conta</label><input type="text" id="fNome" placeholder="Ex: Streaming"></div>
       <div><label class="lbl">Valor (R$)</label><input type="number" id="fVal" step="0.01"></div>
       <div><label class="lbl">Vencimento (dia)</label><input type="number" id="fVenc" min="1" max="31" placeholder="opcional"></div>
+      <div><label class="lbl">Até (competência final)</label><select id="fAte" class="sel-light"></select></div>
       <button class="btn" onclick="addFixo()">+ Add</button>
     </div>
   </div>
@@ -677,7 +679,10 @@ const rendaValMes = (r,mi) => rendaEncerrada(r,mi) ? 0 : (r.vals[mi]||0);
 const labelMesKey = k => { const m=MESES.find(x=>x.key===k); if(m) return m.label; const [a,mm]=String(k).split('-'); return mm+'/'+String(a).slice(2); };
 function opcoesAte(sel){ return '<option value=""'+(!sel?' selected':'')+'>Sem fim</option>'+MESES.map(m=>'<option value="'+m.key+'"'+(sel===m.key?' selected':'')+'>'+m.label+'</option>').join(''); }
 const rendaTotal = mi => renda.reduce((a,r)=>a+rendaValMes(r,mi),0) + totalRendaVar(mi);
-const totalFixo = mi => fixos.reduce((a,f)=>a+(f.vals[mi]||0),0);
+// Competência final da conta fixa: f.ate = chave do último mês; null = sem fim
+const fixoEncerrado = (f,mi) => !!(f.ate && MESES[mi] && MESES[mi].key > f.ate);
+const fixoValMes = (f,mi) => fixoEncerrado(f,mi) ? 0 : (f.vals[mi]||0);
+const totalFixo = mi => fixos.reduce((a,f)=>a+fixoValMes(f,mi),0);
 const totalCP = mi => cartaoPessoal.reduce((a,c)=>a+(mi>=c.startMes&&mi<c.startMes+c.parc?c.val:0),0);
 const totalCNFixo = mi => cartaoNubank.reduce((a,c)=>a+(mi>=c.startMes&&mi<c.startMes+c.parc?c.val:0),0);
 const totalCN = mi => totalCNFixo(mi)+totalVar(mi);
@@ -852,7 +857,7 @@ function renderVencimentos() {
   const mesKeyStr=MESES[mi].key;
   const linhas=[];
   fixos.forEach(f=>{
-    if(f.venc) linhas.push({tipo:'fixo', id:f.id, nome:f.nome, val:f.vals[mi]||0, venc:f.venc, pago:!!(f.pago&&f.pago[mi])});
+    if(f.venc && !fixoEncerrado(f,mi) && !(f.startMes!=null && mi<f.startMes)) linhas.push({tipo:'fixo', id:f.id, nome:f.nome, val:fixoValMes(f,mi), venc:f.venc, pago:!!(f.pago&&f.pago[mi])});
   });
   if(vencCP && totalCP(mi)>0) linhas.push({tipo:'cp', nome:'Cartão pessoal — Lucas', val:totalCP(mi), venc:vencCP, pago:!!(faturaCPPaga&&faturaCPPaga[mi])});
   if(vencCN && totalCN(mi)>0) linhas.push({tipo:'cn', nome:'Cartão Nubank — conjunto', val:totalCN(mi), venc:vencCN, pago:!!(faturaCNPaga&&faturaCNPaga[mi])});
@@ -1163,13 +1168,23 @@ function renderFixos() {
     fixos.map(f=>{
       const pago=!!(f.pago&&f.pago[mi]);
       const ainda = f.startMes!=null && mi<f.startMes; // ainda não existia neste mês
-      const rotulo = ainda ? ` <span class="badge badge-blue">a partir de ${MESES[f.startMes]?MESES[f.startMes].label:'?'}</span>` : '';
-      return `<tr${(pago||ainda)?' class="tr-dim"':''}><td>${f.nome}${rotulo}</td><td class="mono" style="text-align:right">${ainda?'—':fmt(f.vals[mi]||0)}</td>
+      const enc = fixoEncerrado(f,mi);
+      const rotulo = ainda ? ` <span class="badge badge-blue">a partir de ${MESES[f.startMes]?MESES[f.startMes].label:'?'}</span>`
+                   : enc ? ` <span class="badge badge-blue">encerrada em ${labelMesKey(f.ate)}</span>` : '';
+      return `<tr${(pago||ainda||enc)?' class="tr-dim"':''}><td>${f.nome}${rotulo}</td><td class="mono" style="text-align:right">${(ainda||enc)?'—':fmt(f.vals[mi]||0)}</td>
       <td style="text-align:center;cursor:pointer" onclick="editVencimento(${f.id})" title="Clique para editar">${f.venc?labelVenc(f.venc):'<span style="color:var(--hint)">—</span>'}</td>
+      <td style="text-align:center"><select class="sel-light" onchange="setAteFixo(${f.id},this.value)">${opcoesAte(f.ate||'')}</select></td>
       <td><button class="btn btn-ghost btn-sm" onclick="editFixo(${f.id},${mi})">Editar</button>
       <button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="removeFixo(${f.id})">✕</button></td></tr>`;
     }).join('')+
-    `<tr class="tr-total"><td>Total</td><td class="mono" style="text-align:right">${fmt(totalFixo(mi))}</td><td></td><td></td></tr>`;
+    `<tr class="tr-total"><td>Total</td><td class="mono" style="text-align:right">${fmt(totalFixo(mi))}</td><td></td><td></td><td></td></tr>`;
+  const fAte=document.getElementById('fAte'); if(fAte){ const v=fAte.value; fAte.innerHTML=opcoesAte(v); }
+}
+function setAteFixo(id, valor){
+  const f=fixos.find(x=>x.id===id);
+  if(!f) return;
+  f.ate=valor||null;
+  salvar();renderAll();
 }
 function togglePagoFixo(id){
   const f=fixos.find(x=>x.id===id);
@@ -1219,7 +1234,9 @@ function addFixo(){
   if(venc!==null&&(isNaN(venc)||venc<1||venc>31)){ alert('Dia de vencimento inválido (use 1 a 31).'); return; }
   const mi=curMesIdx;
   // Só entra a partir do mês selecionado agora — meses anteriores ficam sem valor (a conta ainda não existia)
-  fixos.push({id:Date.now(),nome,vals:MESES.map((_,i)=>i>=mi?val:0),pago:MESES.map(()=>false),venc,startMes:mi});
+  const ate=document.getElementById('fAte').value||null;
+  fixos.push({id:Date.now(),nome,vals:MESES.map((_,i)=>i>=mi?val:0),pago:MESES.map(()=>false),venc,startMes:mi,ate});
+  document.getElementById('fAte').value='';
   document.getElementById('fNome').value='';document.getElementById('fVal').value='';document.getElementById('fVenc').value='';
   salvar();renderAll();
 }
@@ -1416,7 +1433,7 @@ function gerarPDFMensal(){
   y=pdfTotal(doc,'Total renda',fmt(rt),y);
 
   y=pdfSecao(doc,'Contas fixas (boletos)',y);
-  fixos.forEach(f=>{y=pdfLinha(doc,f.nome,fmt(f.vals[mi]||0),y);});
+  fixos.forEach(f=>{ if(fixoEncerrado(f,mi)||(f.startMes!=null&&mi<f.startMes)) return; y=pdfLinha(doc,f.nome,fmt(f.vals[mi]||0),y);});
   y=pdfTotal(doc,'Total fixos',fmt(fix),y);
 
   y=pdfSecao(doc,'Cartao pessoal - Lucas',y);
