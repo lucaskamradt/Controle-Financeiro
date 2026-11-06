@@ -4,156 +4,257 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Finanças — Lucas & Nicole</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #F7F5F0; --surface: #FFFFFF; --border: #E2DED6;
-    --text: #1A1916; --muted: #6B6860; --hint: #A8A49E;
-    --green: #2D6A4F; --green-bg: #E8F5EE;
-    --red: #9B2335; --red-bg: #FAEAEC;
-    --blue: #1A4A7A; --blue-bg: #E8EFF8;
-    --amber: #7A4A0A; --amber-bg: #FBF0DC;
-    --accent: #C8A96E;
+    --bg: #F4F6FA; --surface: #FFFFFF; --border: #E5E8EF; --border-strong: #D5DAE3;
+    --text: #0F172A; --muted: #5B6478; --hint: #94A0B4;
+    --primary: #2563EB; --primary-600: #1D4ED8; --primary-bg: #EEF3FF;
+    --green: #059669; --green-bg: #E7F8F1;
+    --red: #DC2626; --red-bg: #FDECEC;
+    --blue: #2563EB; --blue-bg: #EEF3FF;
+    --amber: #D97706; --amber-bg: #FEF5E6;
+    --violet: #7C3AED; --violet-bg: #F3EEFF;
+    --accent: #2563EB;
+    --side: #0F172A; --side-2: #1E293B; --side-text: #CBD5E1; --side-muted: #64748B;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(15,23,42,.04), 0 1px 3px rgba(15,23,42,.06);
+    --shadow-lg: 0 10px 30px rgba(15,23,42,.10);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; min-height: 100vh; }
+  html, body { height: 100%; }
+  body { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; -webkit-font-smoothing: antialiased; }
+  .num, td.mono, .metric-val, .gasto-val, .poup-val { font-variant-numeric: tabular-nums; }
 
-  header { background: var(--text); color: #F7F5F0; padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; gap: 1rem; flex-wrap: wrap; }
-  .header-title { font-family: 'DM Serif Display', serif; font-size: 1.2rem; }
-  .header-title span { color: var(--accent); font-style: italic; }
-  select { background: #2C2A27; color: #F7F5F0; border: 1px solid #3E3B38; border-radius: 6px; padding: 5px 10px; font-size: 13px; font-family: 'DM Mono', monospace; cursor: pointer; }
+  /* ===== Estrutura: menu lateral + conteúdo ===== */
+  .app { display: flex; min-height: 100vh; }
+  .sidebar { width: 248px; flex-shrink: 0; background: var(--side); color: var(--side-text); display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; padding: 20px 14px; z-index: 100; }
+  .brand { display: flex; align-items: center; gap: 11px; padding: 4px 8px 22px; }
+  .brand-logo { width: 38px; height: 38px; border-radius: 11px; background: linear-gradient(135deg,#3B82F6,#2563EB); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 14px; letter-spacing: -.02em; box-shadow: 0 4px 12px rgba(37,99,235,.35); }
+  .brand-name { font-weight: 700; color: #fff; font-size: 15px; line-height: 1.2; }
+  .brand-sub { font-size: 12px; color: var(--side-muted); }
+  .nav-section { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--side-muted); padding: 6px 10px 8px; }
+  .tabs { display: flex; flex-direction: column; gap: 3px; }
+  .tab { display: flex; align-items: center; gap: 11px; width: 100%; padding: 10px 12px; border: none; background: none; color: var(--side-text); font: 500 14px 'Inter', sans-serif; border-radius: 10px; cursor: pointer; text-align: left; transition: background .15s, color .15s; white-space: nowrap; }
+  .tab svg { width: 18px; height: 18px; flex-shrink: 0; opacity: .85; }
+  .tab:hover { background: var(--side-2); color: #fff; }
+  .tab.active { background: #1E3A8A; color: #fff; box-shadow: inset 0 0 0 1px rgba(96,165,250,.25); }
+  .tab.active svg { opacity: 1; color: #93C5FD; }
+  .sidebar-foot { margin-top: auto; padding: 14px 10px 0; border-top: 1px solid var(--side-2); display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
+  .sync { display: flex; align-items: center; gap: 7px; }
+  .sync::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+  .logout { color: var(--side-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+  .logout:hover { color: #fff; }
 
-  .poup-banner { background: var(--text); color: #F7F5F0; padding: .6rem 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; border-bottom: 1px solid #2C2A27; font-family: 'DM Mono', monospace; font-size: 13px; }
-  .poup-item { display: flex; flex-direction: column; gap: 1px; }
-  .poup-lbl { font-size: 10px; color: #6B6860; text-transform: uppercase; letter-spacing: .06em; }
-  .poup-val { font-size: 16px; font-weight: 500; }
-  .poup-arrow { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
-  .poup-pos { background: #1A3D2B; color: #6FCF97; }
-  .poup-neg { background: #3D1A1F; color: #F2A0A8; }
+  .content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 24px 32px 18px; }
+  .page-title { font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
+  .page-sub { font-size: 13px; color: var(--muted); margin-top: 3px; }
+  .top-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .month-pick { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0 6px 0 12px; height: 42px; box-shadow: var(--shadow); }
+  .month-pick svg { width: 16px; height: 16px; color: var(--primary); }
+  .month-pick select { border: none; background: transparent; height: 38px; font-weight: 600; padding: 0 6px; }
+  #btnNovoAno { height: 42px !important; padding: 0 14px !important; border-radius: 10px !important; background: var(--primary-bg) !important; color: var(--primary) !important; font-weight: 600 !important; font-size: 13px !important; }
 
-  .tabs { background: var(--surface); border-bottom: 1px solid var(--border); display: flex; overflow-x: auto; padding: 0 1.5rem; scrollbar-width: none; }
-  .tabs::-webkit-scrollbar { display: none; }
-  .tab { padding: 11px 15px; font-size: 13px; font-weight: 500; border: none; background: none; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; transition: color .15s; }
-  .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+  /* Poupança atual em destaque */
+  .poup-banner { display: flex; }
+  .poup-item { display: flex; flex-direction: column; justify-content: center; gap: 1px; height: 42px; padding: 0 16px; border-radius: 10px; background: linear-gradient(135deg,#059669,#047857); color: #fff; box-shadow: 0 4px 12px rgba(5,150,105,.25); transition: transform .15s; }
+  .poup-item:hover { transform: translateY(-1px); }
+  .poup-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; opacity: .85; }
+  .poup-val { font-size: 16px; font-weight: 700; color: #fff !important; }
 
-  main { padding: 1.1rem 1.25rem; max-width: 820px; margin: 0 auto; }
+  main { padding: 0 32px 40px; width: 100%; max-width: 1180px; }
 
-  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 9px; margin-bottom: 1.1rem; }
-  .metric { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: .85rem 1rem; }
-  .metric-lbl { font-size: 10px; color: var(--hint); margin-bottom: 3px; text-transform: uppercase; letter-spacing: .05em; }
-  .metric-val { font-size: 19px; font-weight: 600; font-family: 'DM Mono', monospace; }
-  .metric-sub { font-size: 10px; color: var(--hint); margin-top: 2px; }
+  /* ===== Cartões de números ===== */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .metric { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+  .metric::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--mc, var(--primary)); }
+  .metric-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .metric-lbl { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .metric-ico { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; background: var(--mcbg, var(--primary-bg)); color: var(--mc, var(--primary)); }
+  .metric-ico svg { width: 17px; height: 17px; }
+  .metric-val { font-size: 26px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; }
+  .metric-sub { font-size: 12px; color: var(--hint); margin-top: 6px; }
+  .m-green { --mc: var(--green); --mcbg: var(--green-bg); }
+  .m-red { --mc: var(--red); --mcbg: var(--red-bg); }
+  .m-blue { --mc: var(--blue); --mcbg: var(--blue-bg); }
+  .m-amber { --mc: var(--amber); --mcbg: var(--amber-bg); }
   .g { color: var(--green); } .r { color: var(--red); } .b { color: var(--blue); } .a { color: var(--amber); }
 
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: .85rem; }
-  .card-title { font-family: 'DM Serif Display', serif; font-size: .95rem; margin-bottom: .85rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .badge { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 500; }
+  .grid-2 { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; align-items: start; }
+  .grid-2 > .card { margin-bottom: 0; }
+  .stack { display: flex; flex-direction: column; gap: 16px; margin-bottom: 16px; }
+
+  /* ===== Blocos ===== */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 22px; margin-bottom: 16px; box-shadow: var(--shadow); }
+  .card-title { font-size: 15px; font-weight: 700; letter-spacing: -.01em; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .card-title span[id] { color: var(--primary) !important; }
+  .card > p { color: var(--muted) !important; line-height: 1.5; }
+  .badge { font-size: 11.5px; padding: 3px 9px; border-radius: 999px; font-weight: 600; display: inline-block; }
   .badge-blue { background: var(--blue-bg); color: var(--blue); }
   .badge-green { background: var(--green-bg); color: var(--green); }
   .badge-amber { background: var(--amber-bg); color: var(--amber); }
   .badge-red { background: var(--red-bg); color: var(--red); }
-  .badge-pix { background: rgba(200,169,110,.16); color: var(--accent); }
+  .badge-pix { background: var(--violet-bg); color: var(--violet); }
 
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { font-size: 10px; font-weight: 600; color: var(--hint); text-transform: uppercase; letter-spacing: .05em; padding: 5px 7px; border-bottom: 1px solid var(--border); text-align: left; }
-  td { padding: 7px 7px; border-bottom: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; padding: 10px 10px; background: #F8FAFC; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+  th:first-child { border-top-left-radius: 8px; } th:last-child { border-top-right-radius: 8px; }
+  td { padding: 12px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tbody tr { transition: background .12s; }
+  tbody tr:hover td { background: #FAFBFD; }
   tr:last-child td { border-bottom: none; }
-  .tr-total td { font-weight: 600; background: var(--bg); font-family: 'DM Mono', monospace; }
-  .tr-dim { opacity: 0.4; }
-  td.mono { font-family: 'DM Mono', monospace; }
+  .tr-total td { font-weight: 700; background: #F8FAFC !important; border-top: 1px solid var(--border-strong); }
+  .tr-dim { opacity: 0.45; }
+  td.mono { font-weight: 600; white-space: nowrap; }
+  .empty-chart { position:absolute; inset:0; display:grid; place-items:center; color:var(--hint); font-size:13px; }
+  input[type=checkbox] { accent-color: var(--green); width: 18px !important; height: 18px !important; }
 
-  .add-form { display: grid; gap: 7px; align-items: end; margin-top: .9rem; padding-top: .85rem; border-top: 1px solid var(--border); }
+  /* ===== Formulários ===== */
+  .add-form { display: grid; gap: 10px; align-items: end; margin-top: 16px; padding: 16px; background: #F8FAFC; border: 1px dashed var(--border-strong); border-radius: 12px; }
   .fr2 { grid-template-columns: 2fr 1fr; }
   .fr3 { grid-template-columns: 2fr 1fr auto; }
   .fr4 { grid-template-columns: 2fr 1fr 1fr auto; }
   .fr5 { grid-template-columns: 2fr 1fr 1fr 1fr auto; }
-  .lbl { font-size: 11px; color: var(--muted); display: block; margin-bottom: 2px; }
-  input[type=text], input[type=number], input[type=date] {
-    width: 100%; height: 33px; padding: 0 9px;
-    border: 1px solid var(--border); border-radius: 7px;
-    font-size: 13px; font-family: 'Plus Jakarta Sans', sans-serif;
-    background: var(--bg); color: var(--text);
+  .lbl { font-size: 12px; font-weight: 500; color: var(--muted); display: block; margin-bottom: 5px; }
+  input[type=text], input[type=number], input[type=date], input[type=password], select {
+    width: 100%; height: 38px; padding: 0 11px;
+    border: 1px solid var(--border-strong); border-radius: 9px;
+    font: 400 13.5px 'Inter', sans-serif;
+    background: var(--surface) !important; color: var(--text) !important;
+    transition: border-color .15s, box-shadow .15s;
   }
-  input:focus { outline: none; border-color: var(--accent); }
-  .btn { height: 33px; padding: 0 13px; border: 1px solid var(--border); border-radius: 7px; background: var(--text); color: var(--bg); font-size: 13px; cursor: pointer; white-space: nowrap; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 500; transition: opacity .15s; }
-  .btn:hover { opacity: .85; }
-  .btn-ghost { background: transparent; color: var(--text); }
-  .btn-ghost:hover { background: var(--bg); opacity: 1; }
-  .btn-danger { background: var(--red-bg); color: var(--red); border-color: #EFC2C8; }
-  .btn-sm { height: 25px; padding: 0 8px; font-size: 11px; }
+  select { cursor: pointer; width: auto; }
+  input:focus, select:focus { outline: none; border-color: var(--primary) !important; box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
+  .add-form select, .modal select, .sel-light { width: 100% !important; height: 38px !important; border-radius: 9px !important; border-color: var(--border-strong) !important; }
+  td .sel-light { height: 32px !important; width: auto !important; padding: 0 8px; font-size: 12.5px; }
+  .btn { height: 38px; padding: 0 16px; border: 1px solid transparent; border-radius: 9px; background: var(--primary); color: #fff; font: 600 13.5px 'Inter', sans-serif; cursor: pointer; white-space: nowrap; transition: background .15s, transform .1s; }
+  .btn:hover { background: var(--primary-600); }
+  .btn:active { transform: translateY(1px); }
+  .btn-ghost { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
+  .btn-ghost:hover { background: #F1F5F9; }
+  .btn-danger { background: transparent; color: var(--hint); border-color: transparent; }
+  .btn-danger:hover { background: var(--red-bg); color: var(--red); }
+  .btn-sm { height: 30px; padding: 0 10px; font-size: 12px; border-radius: 8px; }
 
-  .divider { height: 1px; background: var(--border); margin: .85rem 0; }
-  .sub-title { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: .6rem; }
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
+  .sub-title { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 10px; }
 
-  /* Gastos variáveis */
-  .gasto-item { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  /* ===== Lançamentos ===== */
+  .gasto-item { display: flex; align-items: center; gap: 12px; padding: 11px 6px; border-bottom: 1px solid var(--border); font-size: 13.5px; border-radius: 8px; }
+  .gasto-item:hover { background: #FAFBFD; }
   .gasto-item:last-child { border-bottom: none; }
-  .gasto-desc { flex: 1; }
-  .gasto-cat { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 500; white-space: nowrap; }
-  .gasto-val { font-family: 'DM Mono', monospace; font-weight: 500; color: var(--red); white-space: nowrap; }
-  .gasto-data { font-size: 11px; color: var(--hint); white-space: nowrap; }
+  .gasto-desc { flex: 1; font-weight: 500; }
+  .gasto-cat { font-size: 11.5px; padding: 3px 9px; border-radius: 999px; font-weight: 600; white-space: nowrap; }
+  .gasto-val { font-weight: 700; color: var(--red); white-space: nowrap; min-width: 90px; text-align: right; }
+  .gasto-data { font-size: 12px; color: var(--hint); white-space: nowrap; }
 
-  .cat-mercado { background: #E8F5EE; color: #2D6A4F; }
-  .cat-restaurante { background: #FBF0DC; color: #7A4A0A; }
-  .cat-uber { background: #E8EFF8; color: #1A4A7A; }
-  .cat-farmacia { background: #F3E8F8; color: #6A2D8A; }
-  .cat-pet { background: #FFF3E0; color: #8A5A00; }
-  .cat-lazer { background: #FCE4EC; color: #880E4F; }
-  .cat-outros { background: #F3F3F3; color: #555; }
-  .cat-estorno { background: #E8F5EE; color: #2D6A4F; }
+  .cat-mercado { background: #E7F8F1; color: #059669; }
+  .cat-restaurante { background: #FEF5E6; color: #D97706; }
+  .cat-uber { background: #EEF3FF; color: #2563EB; }
+  .cat-farmacia { background: #F3EEFF; color: #7C3AED; }
+  .cat-pet { background: #FFF1E7; color: #EA580C; }
+  .cat-lazer { background: #FDEEF6; color: #DB2777; }
+  .cat-outros { background: #F1F5F9; color: #475569; }
+  .cat-estorno { background: #E7F8F1; color: #059669; }
 
-  .total-var-bar { background: var(--bg); border-radius: 8px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; margin-top: .5rem; font-size: 13px; }
+  .total-var-bar { background: #F8FAFC; border: 1px solid var(--border); border-radius: 10px; padding: 13px 16px; display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 13.5px; }
+  .total-var-bar span:last-child { font-size: 17px !important; font-weight: 700 !important; }
 
-  .chart-wrap { position: relative; width: 100%; height: 230px; margin-bottom: .85rem; }
+  .chart-wrap { position: relative; width: 100%; height: 260px; }
+  .chart-card .chart-wrap { margin: 0; }
   .proj-scroll { overflow-x: auto; }
   .proj-scroll table { min-width: 580px; }
-  .modal-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:200; align-items:center; justify-content:center; padding:1rem; }
+
+  .modal-backdrop { display:none; position:fixed; inset:0; background:rgba(15,23,42,.55); backdrop-filter: blur(3px); z-index:200; align-items:center; justify-content:center; padding:1rem; }
   .modal-backdrop.open { display:flex; }
-  .modal { background:var(--surface); border-radius:14px; padding:1.25rem; width:100%; max-width:380px; }
-  .modal h3 { font-family:'DM Serif Display',serif; font-size:1rem; margin-bottom:1rem; }
-  .modal-grid { display:grid; gap:10px; margin-bottom:1rem; }
+  .modal { background:var(--surface); border-radius:18px; padding:26px; width:100%; max-width:400px; box-shadow: var(--shadow-lg); }
+  .modal h3 { font-size:18px; font-weight:700; margin-bottom:18px; letter-spacing:-.01em; }
+  .modal-grid { display:grid; gap:14px; margin-bottom:20px; }
   .modal-actions { display:flex; gap:8px; justify-content:flex-end; }
+  .login-brand { display:flex; align-items:center; gap:11px; margin-bottom:20px; }
 
-  .filtro-row { display: flex; gap: 8px; margin-bottom: .85rem; flex-wrap: wrap; align-items: center; }
-  .sel-light { background: var(--bg); color: var(--text); border: 1px solid var(--border); height: 33px; width: 100%; font-family: 'Plus Jakarta Sans', sans-serif; }
-  td .sel-light { height: 28px; width: auto; padding: 2px 6px; font-size: 12px; }
-  .filtro-row select { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
-  .filtro-row input[type=text] { max-width: 160px; height: 30px; }
+  .filtro-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
+  .filtro-row select { height: 34px !important; }
 
-  .empty { text-align: center; color: var(--hint); font-size: 13px; padding: 1.5rem 0; }
+  .empty { text-align: center; color: var(--hint); font-size: 13px; padding: 1.75rem 0; }
 
-  @media (max-width: 520px) {
-    main { padding: .85rem; }
+  /* ===== Telas menores ===== */
+  @media (max-width: 1000px) {
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 860px) {
+    .app { flex-direction: column; }
+    .sidebar { width: 100%; height: auto; position: sticky; top: 0; padding: 10px 12px; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .brand { padding: 0; }
+    .brand-logo { width: 32px; height: 32px; font-size: 12px; }
+    .brand-sub, .nav-section { display: none; }
+    .tabs { flex-direction: row; overflow-x: auto; width: 100%; order: 3; scrollbar-width: none; gap: 4px; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab { width: auto; padding: 8px 12px; font-size: 13px; }
+    .tab svg { width: 16px; height: 16px; }
+    .sidebar-foot { margin: 0 0 0 auto; border: none; padding: 0; flex-direction: row; gap: 14px; }
+    .topbar { padding: 18px 16px 14px; }
+    main { padding: 0 16px 28px; }
+  }
+  @media (max-width: 560px) {
     .fr3, .fr4, .fr5 { grid-template-columns: 1fr 1fr; }
     .fr3 > *:last-child, .fr4 > *:last-child, .fr5 > *:last-child { grid-column: 1/-1; }
-    header { padding: .85rem 1rem; }
+    .metrics { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .metric { padding: 14px; }
+    .metric-val { font-size: 19px; }
+    .metric-ico { display: none; }
+    .card { padding: 16px; }
+    .page-title { font-size: 20px; }
+    .top-actions { width: 100%; }
+    .month-pick { flex: 1; }
+    .month-pick select { width: 100%; }
+    .card table { display: block; overflow-x: auto; }
+    .gasto-item { flex-wrap: wrap; gap: 6px 10px; }
+    .gasto-desc { flex-basis: 100%; }
   }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="header-title">Lucas &amp; <span>Nicole</span></div>
-  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-    <span id="nuvemIndicador" style="font-size:10px;color:#A8A49E;font-family:'DM Mono',monospace"></span>
-    <a href="#" onclick="fazerLogout();return false" style="font-size:10px;color:#A8A49E;text-decoration:underline">Sair</a>
-    <span style="font-size:11px;color:#A8A49E">Mês</span>
-    <select id="mesSel" onchange="changeMes()"></select>
-    <button id="btnNovoAno" onclick="gerarAnoSeguinte()" style="display:none;height:30px;padding:0 10px;font-size:11px;font-weight:500;background:#C8A96E;color:#1A1916;border:none;border-radius:6px;cursor:pointer">+ Ano seguinte</button>
+<div class="app">
+
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-logo">L&amp;N</div>
+    <div><div class="brand-name">Finanças</div><div class="brand-sub">Lucas &amp; Nicole</div></div>
+  </div>
+  <div class="nav-section">Menu</div>
+  <nav class="tabs">
+    <button class="tab active" data-tab="painel" onclick="switchTab('painel')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Painel</span></button>
+    <button class="tab" data-tab="gastos" onclick="switchTab('gastos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/><path d="M2.5 3h2.6l2.4 12.2a1.6 1.6 0 0 0 1.6 1.3h8.6a1.6 1.6 0 0 0 1.6-1.2L21 7H6"/></svg><span>Gastos do dia</span></button>
+    <button class="tab" data-tab="renda" onclick="switchTab('renda')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5.5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span>Renda</span></button>
+    <button class="tab" data-tab="fixos" onclick="switchTab('fixos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 15h2M14 15h2"/></svg><span>Contas fixas</span></button>
+    <button class="tab" data-tab="cartao" onclick="switchTab('cartao')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg><span>Cartões</span></button>
+    <button class="tab" data-tab="projecao" onclick="switchTab('projecao')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 14 4-4 4 4 5-6"/></svg><span>Projeção</span></button>
+    <button class="tab" data-tab="relatorios" onclick="switchTab('relatorios')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg><span>Relatórios</span></button>
+  </nav>
+  <div class="sidebar-foot">
+    <span id="nuvemIndicador" class="sync"></span>
+    <a href="#" class="logout" onclick="fazerLogout();return false">Sair ↗</a>
+  </div>
+</aside>
+
+<div class="content">
+<header class="topbar">
+  <div>
+    <h1 class="page-title" id="pageTitle">Painel</h1>
+    <div class="page-sub" id="pageSub">Visão geral do mês</div>
+  </div>
+  <div class="top-actions">
+    <div class="poup-banner" id="poupBanner"></div>
+    <div class="month-pick">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      <select id="mesSel" onchange="changeMes()"></select>
+    </div>
+    <button id="btnNovoAno" onclick="gerarAnoSeguinte()" style="display:none;border:none;cursor:pointer">+ Ano seguinte</button>
   </div>
 </header>
-
-<div class="poup-banner" id="poupBanner"></div>
-
-<div class="tabs">
-  <button class="tab active" data-tab="painel" onclick="switchTab('painel')">📊 Painel</button>
-  <button class="tab" data-tab="gastos" onclick="switchTab('gastos')">🛒 Gastos do dia</button>
-  <button class="tab" data-tab="renda" onclick="switchTab('renda')">💰 Renda</button>
-  <button class="tab" data-tab="fixos" onclick="switchTab('fixos')">📋 Contas fixas</button>
-  <button class="tab" data-tab="cartao" onclick="switchTab('cartao')">💳 Cartões</button>
-  <button class="tab" data-tab="projecao" onclick="switchTab('projecao')">📈 Projeção</button>
-  <button class="tab" data-tab="relatorios" onclick="switchTab('relatorios')">📄 Relatórios</button>
-</div>
 
 <main>
 
@@ -161,16 +262,21 @@
 <div id="pane-painel">
   <div class="metrics" id="metricsTop"></div>
   <div class="card">
-    <div class="card-title">Resumo do mês</div>
-    <table><thead><tr><th>Categoria</th><th style="text-align:right">Valor</th><th style="text-align:right">% renda</th></tr></thead>
-    <tbody id="resumoBody"></tbody></table>
-  </div>
-  <div class="card">
-    <div class="card-title">Vencimentos — separe o dinheiro com antecedência</div>
+    <div class="card-title">Vencimentos <span class="badge badge-blue">separe o dinheiro com antecedência</span></div>
     <table><thead><tr><th>Conta</th><th style="text-align:right">Valor</th><th style="text-align:center">Vencimento</th><th style="text-align:center">Separar até</th><th style="text-align:center">Pago</th></tr></thead>
     <tbody id="vencimentosBody"></tbody></table>
   </div>
-  <div class="chart-wrap"><canvas id="chartPainel"></canvas></div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Resumo do mês</div>
+      <table><thead><tr><th>Categoria</th><th style="text-align:right">Valor</th><th style="text-align:right">% renda</th></tr></thead>
+      <tbody id="resumoBody"></tbody></table>
+    </div>
+    <div class="card chart-card">
+      <div class="card-title">Para onde foi o dinheiro</div>
+      <div class="chart-wrap"><canvas id="chartPainel"></canvas></div>
+    </div>
+  </div>
 </div>
 
 <!-- GASTOS DO DIA -->
@@ -209,7 +315,7 @@
     <div id="pixLista"></div>
     <div class="total-var-bar">
       <span style="font-weight:600">Total Pix do mês</span>
-      <span id="pixTotalLabel" style="font-family:'DM Mono',monospace;font-weight:600;color:var(--accent);font-size:15px"></span>
+      <span id="pixTotalLabel" style="font-variant-numeric:tabular-nums;font-weight:600;color:var(--accent);font-size:15px"></span>
     </div>
   </div>
 
@@ -234,13 +340,13 @@
 
     <div class="total-var-bar">
       <span style="font-weight:600">Total do mês no cartão</span>
-      <span id="gastosTotalLabel" style="font-family:'DM Mono',monospace;font-weight:600;color:var(--red);font-size:15px"></span>
+      <span id="gastosTotalLabel" style="font-variant-numeric:tabular-nums;font-weight:600;color:var(--red);font-size:15px"></span>
     </div>
   </div>
 
   <div class="card">
     <div class="card-title">Por categoria</div>
-    <div class="chart-wrap" style="height:200px"><canvas id="chartCat"></canvas></div>
+    <div class="chart-wrap" style="height:220px" id="chartCatWrap"><canvas id="chartCat"></canvas></div>
     <div id="legendCat" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:.5rem;font-size:11px;color:var(--muted)"></div>
   </div>
 </div>
@@ -248,7 +354,7 @@
 <!-- RENDA -->
 <div id="pane-renda" style="display:none">
   <div class="card">
-    <div class="card-title">💰 Renda — <span id="rendaMesLabel" style="color:var(--accent)"></span></div>
+    <div class="card-title">Renda fixa — <span id="rendaMesLabel" style="color:var(--accent)"></span></div>
     <p style="font-size:12px;color:var(--hint);margin-bottom:1rem">Editar propaga para este mês e todos os seguintes. Meses anteriores não são alterados. Em "Até" você define a competência final: depois desse mês a renda para de entrar.</p>
     <table>
       <thead><tr><th>Fonte de renda</th><th style="text-align:right">Valor</th><th style="text-align:center">Até</th><th style="text-align:center">Recebido</th><th>Ações</th></tr></thead>
@@ -274,7 +380,7 @@
     <div id="rendaVarLista"></div>
     <div class="total-var-bar">
       <span style="font-weight:600">Total renda variável do mês</span>
-      <span id="rendaVarTotalLabel" style="font-family:'DM Mono',monospace;font-weight:600;color:var(--green);font-size:15px"></span>
+      <span id="rendaVarTotalLabel" style="font-variant-numeric:tabular-nums;font-weight:600;color:var(--green);font-size:15px"></span>
     </div>
   </div>
 </div>
@@ -328,11 +434,11 @@
     <div class="divider"></div>
     <div style="display:flex;justify-content:space-between;font-size:13px">
       <span>Fatura mês anterior (gastos do cartão)</span>
-      <span id="varFixoLabel" style="font-family:'DM Mono',monospace;font-weight:600;color:var(--red)"></span>
+      <span id="varFixoLabel" style="font-variant-numeric:tabular-nums;font-weight:600;color:var(--red)"></span>
     </div>
     <div style="margin-top:6px;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:14px">
       <span>Total cartão conjunto</span>
-      <span id="cnTotalLabel" style="font-family:'DM Mono',monospace;color:var(--red)"></span>
+      <span id="cnTotalLabel" style="font-variant-numeric:tabular-nums;color:var(--red)"></span>
     </div>
   </div>
 </div>
@@ -345,13 +451,16 @@
       <table><thead><tr id="projHead"></tr></thead><tbody id="projBody"></tbody></table>
     </div>
   </div>
-  <div class="chart-wrap"><canvas id="chartProj"></canvas></div>
+  <div class="card chart-card">
+    <div class="card-title">Evolução da poupança</div>
+    <div class="chart-wrap"><canvas id="chartProj"></canvas></div>
+  </div>
 </div>
 
 <!-- RELATÓRIOS -->
 <div id="pane-relatorios" style="display:none">
   <div class="card">
-    <div class="card-title">📄 Relatório mensal</div>
+    <div class="card-title">Relatório mensal</div>
     <p style="font-size:12px;color:var(--hint);margin-bottom:1rem">Gera um PDF com resumo completo do mês selecionado — renda, contas fixas, cartões e gastos variáveis.</p>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <div>
@@ -362,7 +471,7 @@
     </div>
   </div>
   <div class="card">
-    <div class="card-title">📄 Relatório anual</div>
+    <div class="card-title">Relatório anual</div>
     <p style="font-size:12px;color:var(--hint);margin-bottom:1rem">Gera um PDF com todos os meses do ano — visão geral de renda, gastos e evolução da poupança.</p>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <div>
@@ -379,10 +488,13 @@
 </div>
 
 </main>
+</div><!-- /content -->
+</div><!-- /app -->
 
 <!-- LOGIN -->
 <div class="modal-backdrop" id="loginBackdrop" style="z-index:300">
   <div class="modal">
+    <div class="login-brand"><div class="brand-logo">L&amp;N</div><div><div style="font-weight:700;font-size:17px">Finanças</div><div style="font-size:12.5px;color:var(--muted)">Lucas &amp; Nicole</div></div></div>
     <h3>Entrar</h3>
     <div class="modal-grid">
       <div><label class="lbl">Email</label><input type="text" id="loginEmail" autocomplete="username" onkeydown="loginKeydown(event)"></div>
@@ -390,7 +502,7 @@
       <div id="loginErro" style="color:var(--red);font-size:12px"></div>
     </div>
     <div class="modal-actions">
-      <button class="btn" onclick="fazerLogin()" style="width:100%">Entrar</button>
+      <button class="btn" onclick="fazerLogin()" style="width:100%;height:42px">Entrar</button>
     </div>
   </div>
 </div>
@@ -452,10 +564,10 @@ function atualizarIndicadorNuvem() {
   const el = document.getElementById('nuvemIndicador');
   if (!el) return;
   const map = {
-    offline: ['Somente neste navegador', '#A8A49E'],
-    conectando: ['Conectando à nuvem…', '#C8A96E'],
-    online: ['Sincronizado ☁️', '#2D6A4F'],
-    erro: ['Falha ao sincronizar', '#9B2335'],
+    offline: ['Somente neste navegador', '#94A3B8'],
+    conectando: ['Conectando à nuvem…', '#FBBF24'],
+    online: ['Sincronizado', '#4ADE80'],
+    erro: ['Falha ao sincronizar', '#F87171'],
   };
   const [txt, cor] = map[nuvemStatus];
   el.textContent = txt;
@@ -552,8 +664,8 @@ const RENDA_INICIAL = [
 let renda;
 
 const CAT_CORES = {
-  mercado:'#2D6A4F', restaurante:'#7A4A0A', uber:'#1A4A7A',
-  farmacia:'#6A2D8A', pet:'#8A5A00', lazer:'#880E4F', outros:'#555', estorno:'#2D6A4F'
+  mercado:'#059669', restaurante:'#D97706', uber:'#2563EB',
+  farmacia:'#7C3AED', pet:'#EA580C', lazer:'#DB2777', outros:'#64748B', estorno:'#059669'
 };
 const CAT_NOMES = {
   mercado:'Mercado', restaurante:'Restaurante', uber:'Uber/transp.',
@@ -777,7 +889,18 @@ function changeMes() {
   salvar(); verificarBotaoAno(); renderAll();
 }
 
+const TITULOS_ABA={
+  painel:['Painel','Visão geral do mês'],
+  gastos:['Gastos do dia','Cartão Nubank conjunto e Pix à vista'],
+  renda:['Renda','Fontes fixas e renda variável'],
+  fixos:['Contas fixas','Boletos e contas mensais'],
+  cartao:['Cartões','Inter (Lucas) e Nubank (conjunto)'],
+  projecao:['Projeção','Poupança mês a mês'],
+  relatorios:['Relatórios','PDF mensal e anual'],
+};
 function switchTab(tab) {
+  const tt=TITULOS_ABA[tab]; if(tt){ document.getElementById('pageTitle').textContent=tt[0]; document.getElementById('pageSub').textContent=tt[1]; }
+  window.scrollTo({top:0});
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
   ['painel','gastos','renda','fixos','cartao','projecao','relatorios'].forEach(p=>{
     document.getElementById('pane-'+p).style.display=p===tab?'block':'none';
@@ -815,11 +938,12 @@ function editarPoupanca() {
 
 function renderPainel() {
   const mi=curMesIdx,renda=rendaTotal(mi),fix=totalFixo(mi),cp=totalCP(mi),cnf=totalCNFixo(mi),vr=totalVar(mi),px=totalPix(mi),gasto=totalGasto(mi),sal=saldoMes(mi);
+  const comp=renda?gasto/renda:0, compCls=comp>.9?'red':comp>.7?'amber':'green';
   document.getElementById('metricsTop').innerHTML=`
-    <div class="metric"><div class="metric-lbl">Renda total</div><div class="metric-val g">${fmt(renda)}</div><div class="metric-sub">Lucas + Nicole + Extras</div></div>
-    <div class="metric"><div class="metric-lbl">Total gasto</div><div class="metric-val r">${fmt(gasto)}</div></div>
-    <div class="metric"><div class="metric-lbl">Saldo do mês</div><div class="metric-val ${sal>=0?'b':'r'}">${fmtS(sal)}</div></div>
-    <div class="metric"><div class="metric-lbl">Comprometido</div><div class="metric-val ${gasto/renda>.9?'r':gasto/renda>.7?'a':'g'}">${pct(gasto,renda)}</div></div>
+    <div class="metric m-green"><div class="metric-head"><div class="metric-lbl">Renda total</div><div class="metric-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></svg></div></div><div class="metric-val g">${fmt(renda)}</div><div class="metric-sub">Lucas + Nicole + extras</div></div>
+    <div class="metric m-red"><div class="metric-head"><div class="metric-lbl">Total gasto</div><div class="metric-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 7 7 17M16 17H7V8"/></svg></div></div><div class="metric-val r">${fmt(gasto)}</div><div class="metric-sub">contas, cartões e Pix</div></div>
+    <div class="metric ${sal>=0?'m-blue':'m-red'}"><div class="metric-head"><div class="metric-lbl">Saldo do mês</div><div class="metric-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7V5a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3v2a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V6"/></svg></div></div><div class="metric-val ${sal>=0?'b':'r'}">${fmtS(sal)}</div><div class="metric-sub">renda − gastos</div></div>
+    <div class="metric m-${compCls}"><div class="metric-head"><div class="metric-lbl">Comprometido</div><div class="metric-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.2 15.9A10 10 0 1 1 8 2.8"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></div></div><div class="metric-val ${compCls==='red'?'r':compCls==='amber'?'a':'g'}">${pct(gasto,renda)}</div><div class="metric-sub">da renda do mês</div></div>
   `;
   document.getElementById('resumoBody').innerHTML=[
     {cat:'Contas fixas (boletos)',val:fix,badge:'badge-blue'},
@@ -833,8 +957,8 @@ function renderPainel() {
   if(chartPainel) chartPainel.destroy();
   chartPainel=new Chart(document.getElementById('chartPainel'),{
     type:'bar',
-    data:{labels:['Contas fixas','Cartão Lucas','Nubank fixos','Nubank variáveis','Pix à vista'],datasets:[{data:[fix,cp,cnf,vr,px],backgroundColor:['#1A4A7A','#7A4A0A','#2D6A4F','#9B2335','#8A5A00'],borderWidth:0,borderRadius:4}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#6B6860',font:{size:11}}},y:{grid:{color:'#E2DED6'},ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR'),color:'#6B6860',font:{size:11}}}}}
+    data:{labels:['Contas fixas','Cartão Lucas','Nubank fixos','Nubank variáveis','Pix à vista'],datasets:[{data:[fix,cp,cnf,vr,px],backgroundColor:['#2563EB','#D97706','#059669','#DC2626','#7C3AED'],borderWidth:0,borderRadius:8,maxBarThickness:46}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},border:{display:false},ticks:{color:'#5B6478',font:{size:11,family:'Inter'}}},y:{grid:{color:'#EEF1F6'},border:{display:false},ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR'),color:'#94A0B4',font:{size:11,family:'Inter'}}}}}
   });
   renderVencimentos();
 }
@@ -933,10 +1057,10 @@ function renderGastos() {
   // Com filtro de categoria ativo, os parcelados fixos não têm categoria, então mostramos só o subtotal filtrado.
   const totFaturaVar=listaFatura.reduce((a,g)=>a+g.val,0);
   if(filtCat){
-    html+=`<div style="text-align:right;font-size:12px;color:var(--red);font-family:'DM Mono',monospace;font-weight:600;padding:6px 0;border-top:1px solid var(--border)">Total fatura (categoria filtrada): ${fmt(totFaturaVar)}</div>`;
+    html+=`<div style="text-align:right;font-size:12px;color:var(--red);font-variant-numeric:tabular-nums;font-weight:600;padding:6px 0;border-top:1px solid var(--border)">Total fatura (categoria filtrada): ${fmt(totFaturaVar)}</div>`;
   } else {
     const totFaturaCompleta=totFaturaVar+totalCNFixo(mi);
-    html+=`<div style="text-align:right;font-size:12px;color:var(--red);font-family:'DM Mono',monospace;font-weight:600;padding:6px 0;border-top:1px solid var(--border)">Total fatura (avulsos + parcelados fixos): ${fmt(totFaturaCompleta)}</div>`;
+    html+=`<div style="text-align:right;font-size:12px;color:var(--red);font-variant-numeric:tabular-nums;font-weight:600;padding:6px 0;border-top:1px solid var(--border)">Total fatura (avulsos + parcelados fixos): ${fmt(totFaturaCompleta)}</div>`;
   }
 
   html+='<div style="height:1px;background:var(--border);margin:1rem 0"></div>';
@@ -965,15 +1089,16 @@ function renderGastos() {
   const cores=cats.map(c=>CAT_CORES[c]||'#888');
 
   if(chartCat) chartCat.destroy();
+  document.getElementById('chartCatWrap').style.display=cats.length?'':'none';
   if(cats.length){
     chartCat=new Chart(document.getElementById('chartCat'),{
       type:'doughnut',
-      data:{labels:cats.map(c=>CAT_NOMES[c]),datasets:[{data:vals,backgroundColor:cores,borderWidth:0}]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}
+      data:{labels:cats.map(c=>CAT_NOMES[c]),datasets:[{data:vals,backgroundColor:cores,borderWidth:3,borderColor:'#fff',hoverOffset:6}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{display:false}}}
     });
     document.getElementById('legendCat').innerHTML=cats.map((c,i)=>`<span style="display:flex;align-items:center;gap:4px"><span style="width:9px;height:9px;border-radius:2px;background:${cores[i]}"></span>${CAT_NOMES[c]} ${fmt(vals[i])}</span>`).join('');
   } else {
-    document.getElementById('legendCat').innerHTML='';
+    document.getElementById('legendCat').innerHTML='<div class="empty" style="width:100%;padding:0">Nenhum gasto nessa fatura ainda — o gráfico aparece quando você lançar.</div>';
   }
 
   renderPix();
@@ -992,7 +1117,7 @@ function renderPix() {
       <div class="gasto-item">
         <div class="gasto-desc">${p.desc}</div>
         ${p.data?`<span class="gasto-data">${p.data.split('-').reverse().slice(0,2).join('/')}</span>`:''}
-        <span style="font-family:'DM Mono',monospace;font-weight:500;color:var(--accent);white-space:nowrap">${fmt(p.val)}</span>
+        <span style="font-variant-numeric:tabular-nums;font-weight:500;color:var(--accent);white-space:nowrap">${fmt(p.val)}</span>
         <button class="btn btn-danger btn-sm" onclick="removePix(${p.id})">✕</button>
       </div>`).join('');
   }
@@ -1083,7 +1208,7 @@ function renderRendaVar() {
       <div class="gasto-item">
         <div class="gasto-desc">${r.desc}</div>
         ${r.data?`<span class="gasto-data">${r.data.split('-').reverse().slice(0,2).join('/')}</span>`:''}
-        <span style="font-family:'DM Mono',monospace;font-weight:500;color:var(--green);white-space:nowrap">${fmt(r.val)}</span>
+        <span style="font-variant-numeric:tabular-nums;font-weight:500;color:var(--green);white-space:nowrap">${fmt(r.val)}</span>
         <button class="btn btn-danger btn-sm" onclick="removeRendaVar(${r.id})">✕</button>
       </div>`).join('');
   }
@@ -1372,10 +1497,10 @@ function renderProjecao() {
   chartProj=new Chart(document.getElementById('chartProj'),{
     type:'line',
     data:{labels,datasets:[
-      {data,borderColor:'#C8A96E',backgroundColor:'rgba(200,169,110,0.08)',fill:true,tension:0.3,pointRadius:4,pointBackgroundColor:'#C8A96E',borderWidth:2},
+      {data,borderColor:'#2563EB',backgroundColor:'rgba(37,99,235,0.10)',fill:true,tension:0.35,pointRadius:4,pointBackgroundColor:'#fff',pointBorderColor:'#2563EB',pointBorderWidth:2,borderWidth:2.5},
       {data:data.map(()=>0),borderColor:'rgba(155,35,53,0.35)',borderDash:[4,4],pointRadius:0,borderWidth:1,fill:false},
     ]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#6B6860',font:{size:11}}},y:{grid:{color:'#E2DED6'},ticks:{callback:v=>'R$'+(v/1000).toFixed(0)+'k',color:'#6B6860',font:{size:11}}}}}
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},border:{display:false},ticks:{color:'#5B6478',font:{size:11,family:'Inter'}}},y:{grid:{color:'#EEF1F6'},border:{display:false},ticks:{callback:v=>'R$'+(v/1000).toFixed(0)+'k',color:'#94A0B4',font:{size:11,family:'Inter'}}}}}
   });
 }
 
